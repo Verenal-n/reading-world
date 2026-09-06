@@ -890,33 +890,33 @@ function isLocComplete(locId){
 
 // ═══════════ LOCATIONS ═══════════
 const LOCS={
-  oak:{id:'oak',name:'Лабораторія',mLabel:'Лабораторія',emoji:'🧪',cx:49,cy:165,
+  oak:{id:'oak',name:'Лабораторія',mLabel:'Лабораторія',emoji:'🧪',cx:44,cy:166,
     color:'#1e3a1e',stroke:'#4ade80',badge:'Старт',badgeBg:'rgba(var(--ok-rgb),.2)',badgeTxt:'#4ade80',
     unlockReq:null},
-  pallet:{id:'pallet',name:'Містечко',mLabel:'Містечко',emoji:'🏘️',cx:128,cy:144,
+  pallet:{id:'pallet',name:'Містечко',mLabel:'Містечко',emoji:'🏘️',cx:126,cy:145,
     color:'#166534',stroke:'#4ade80',badge:'Зона 1',badgeBg:'rgba(var(--ok-rgb),.15)',badgeTxt:'#4ade80',
     unlockReq:{type:'keyChain',chainId:'pikachu',stageIdx:1}},
-  forest:{id:'forest',name:'Ліс',mLabel:'Ліс',emoji:'🌲',cx:201,cy:122,
+  forest:{id:'forest',name:'Ліс',mLabel:'Ліс',emoji:'🌲',cx:200,cy:122,
     color:'#064e3b',stroke:'#34d399',badge:'Зона 2',badgeBg:'rgba(52,211,153,.2)',badgeTxt:'#34d399',
     unlockReq:{type:'keyChain',chainId:'abra',stageIdx:3}},
-  glade:{id:'glade',name:'Поляна',mLabel:'Поляна',emoji:'🌸',cx:273,cy:105,
+  glade:{id:'glade',name:'Поляна',mLabel:'Поляна',emoji:'🌸',cx:274,cy:106,
     color:'#3b0764',stroke:'#a78bfa',badge:'Зона 3',badgeBg:'rgba(167,139,250,.2)',badgeTxt:'#a78bfa',
     unlockReq:{type:'locMega',loc:'forest'}},
-  butterfly:{id:'butterfly',name:'Повітряні острови',mLabel:'Острови',emoji:'☁️',cx:341,cy:46,
+  butterfly:{id:'butterfly',name:'Повітряні острови',mLabel:'Острови',emoji:'☁️',cx:344,cy:44,
     color:'#1e3a5f',stroke:'#93c5fd',badge:'Зона 3',badgeBg:'rgba(147,197,253,.2)',badgeTxt:'#93c5fd',
     unlockReq:{type:'keyChain',chainId:'pinsir',stageIdx:1}},
-  caves:{id:'caves',name:'Печери',mLabel:'Печери',emoji:'⛏️',cx:345,cy:140,
+  caves:{id:'caves',name:'Печери',mLabel:'Печери',emoji:'⛏️',cx:348,cy:140,
     color:'#1c1917',stroke:'#a8a29e',badge:'Зона 4',badgeBg:'rgba(168,162,158,.2)',badgeTxt:'#a8a29e',
     unlockReq:{type:'count',locs:['oak','pallet','forest','glade','butterfly'],need:30}},
-  shore:{id:'shore',name:'Берег',mLabel:'Берег',emoji:'🌊',cx:304,cy:198,
+  shore:{id:'shore',name:'Берег',mLabel:'Берег',emoji:'🌊',cx:306,cy:200,
     color:'#0c2a4a',stroke:'#38bdf8',badge:'Зона 5',badgeBg:'rgba(56,189,248,.2)',badgeTxt:'#38bdf8',
     unlockReq:{type:'count',locs:['oak','pallet','forest','glade','butterfly','caves'],need:47}},
-  map2:{id:'map2',name:'Новий Регіон',mLabel:'Новий Регіон',emoji:'🌏',cx:417,cy:166,
+  map2:{id:'map2',name:'Новий Регіон',mLabel:'Новий Регіон',emoji:'🌏',cx:420,cy:168,
     color:'#172554',stroke:'#60a5fa',badge:'Карта 2',badgeBg:'rgba(96,165,250,.2)',badgeTxt:'#60a5fa',
     unlockReq:{type:'megaCount',locs:['oak','pallet','forest','glade','butterfly','caves','shore'],need:12}},
 };
 const ALL_KANTO_LOCS=Object.keys(LOCS);
-const SHOP_NODE={cx:55,cy:52,color:'#3f2a0e',stroke:'#fbbf24'};
+const SHOP_NODE={cx:51,cy:50,color:'#3f2a0e',stroke:'#fbbf24'};
 
 const LOCS_JOHTO={
   newbark:{id:'newbark',name:'Нове містечко',mLabel:'Нове містечко',emoji:'🏙️',cx:200,cy:120,
