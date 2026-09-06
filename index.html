@@ -598,6 +598,15 @@ select option{background:var(--panel);color:var(--txt-hi);}
 .wall-fs-bar{flex-shrink:0;display:flex;align-items:center;gap:9px;
   padding:12px 14px calc(12px + env(safe-area-inset-bottom, 0px));background:var(--glass);}
 .wall-fs-nm{flex:1;min-width:0;font-size:14px;font-weight:700;color:var(--txt-hi);}
+.wall-fs-nm i{display:block;font-style:normal;font-size:10.5px;font-weight:500;color:var(--txt-3);}
+.wall-fs-arrow{
+  position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;
+  border:none;cursor:pointer;font-family:inherit;font-size:24px;line-height:1;
+  background:var(--glass);color:var(--txt-hi);opacity:.75;
+}
+.wall-fs-arrow:hover{opacity:1;}
+.wall-fs-arrow.l{left:10px;}
+.wall-fs-arrow.r{right:10px;}
 .wall-fs-cur{font-size:12px;font-weight:700;color:var(--ok);white-space:nowrap;}
 .wall-fs .btn-ok,.wall-fs .btn-cancel{flex-shrink:0;padding:9px 14px;font-size:13px;width:auto;}
 .wall-item{display:flex;flex-direction:column;gap:4px;}
@@ -881,36 +890,36 @@ function isLocComplete(locId){
 
 // ═══════════ LOCATIONS ═══════════
 const LOCS={
-  oak:{id:'oak',name:"Лабораторія Оука",mLabel:'Лабораторія',emoji:'🧪',cx:46,cy:122,
+  oak:{id:'oak',name:'Лабораторія',mLabel:'Лабораторія',emoji:'🧪',cx:49,cy:165,
     color:'#1e3a1e',stroke:'#4ade80',badge:'Старт',badgeBg:'rgba(var(--ok-rgb),.2)',badgeTxt:'#4ade80',
     unlockReq:null},
-  pallet:{id:'pallet',name:'Місто Палет',mLabel:'Палет',emoji:'🏘️',cx:148,cy:122,
+  pallet:{id:'pallet',name:'Містечко',mLabel:'Містечко',emoji:'🏘️',cx:128,cy:144,
     color:'#166534',stroke:'#4ade80',badge:'Зона 1',badgeBg:'rgba(var(--ok-rgb),.15)',badgeTxt:'#4ade80',
     unlockReq:{type:'keyChain',chainId:'pikachu',stageIdx:1}},
-  forest:{id:'forest',name:'Ліс Вірідіан',mLabel:'Вірідіан',emoji:'🌲',cx:242,cy:62,
+  forest:{id:'forest',name:'Ліс',mLabel:'Ліс',emoji:'🌲',cx:201,cy:122,
     color:'#064e3b',stroke:'#34d399',badge:'Зона 2',badgeBg:'rgba(52,211,153,.2)',badgeTxt:'#34d399',
     unlockReq:{type:'keyChain',chainId:'abra',stageIdx:3}},
-  glade:{id:'glade',name:'Поляна',mLabel:'Поляна',emoji:'🌸',cx:328,cy:122,
+  glade:{id:'glade',name:'Поляна',mLabel:'Поляна',emoji:'🌸',cx:273,cy:105,
     color:'#3b0764',stroke:'#a78bfa',badge:'Зона 3',badgeBg:'rgba(167,139,250,.2)',badgeTxt:'#a78bfa',
     unlockReq:{type:'locMega',loc:'forest'}},
-  butterfly:{id:'butterfly',name:'Поляна метеликів',mLabel:'Метелики',emoji:'🦋',cx:242,cy:182,
-    color:'#500724',stroke:'#f9a8d4',badge:'Зона 3',badgeBg:'rgba(249,168,212,.2)',badgeTxt:'#f9a8d4',
+  butterfly:{id:'butterfly',name:'Повітряні острови',mLabel:'Острови',emoji:'☁️',cx:341,cy:46,
+    color:'#1e3a5f',stroke:'#93c5fd',badge:'Зона 3',badgeBg:'rgba(147,197,253,.2)',badgeTxt:'#93c5fd',
     unlockReq:{type:'keyChain',chainId:'pinsir',stageIdx:1}},
-  caves:{id:'caves',name:'Печери',mLabel:'Печери',emoji:'⛏️',cx:398,cy:62,
+  caves:{id:'caves',name:'Печери',mLabel:'Печери',emoji:'⛏️',cx:345,cy:140,
     color:'#1c1917',stroke:'#a8a29e',badge:'Зона 4',badgeBg:'rgba(168,162,158,.2)',badgeTxt:'#a8a29e',
     unlockReq:{type:'count',locs:['oak','pallet','forest','glade','butterfly'],need:30}},
-  shore:{id:'shore',name:'Морський берег',mLabel:'Берег',emoji:'🌊',cx:440,cy:122,
+  shore:{id:'shore',name:'Берег',mLabel:'Берег',emoji:'🌊',cx:304,cy:198,
     color:'#0c2a4a',stroke:'#38bdf8',badge:'Зона 5',badgeBg:'rgba(56,189,248,.2)',badgeTxt:'#38bdf8',
     unlockReq:{type:'count',locs:['oak','pallet','forest','glade','butterfly','caves'],need:47}},
-  map2:{id:'map2',name:'Регіон Джото',mLabel:'Регіон Джото',emoji:'🌏',cx:398,cy:182,
+  map2:{id:'map2',name:'Новий Регіон',mLabel:'Новий Регіон',emoji:'🌏',cx:417,cy:166,
     color:'#172554',stroke:'#60a5fa',badge:'Карта 2',badgeBg:'rgba(96,165,250,.2)',badgeTxt:'#60a5fa',
     unlockReq:{type:'megaCount',locs:['oak','pallet','forest','glade','butterfly','caves','shore'],need:12}},
 };
 const ALL_KANTO_LOCS=Object.keys(LOCS);
-const SHOP_NODE={cx:40,cy:205,color:'#3f2a0e',stroke:'#fbbf24'};
+const SHOP_NODE={cx:55,cy:52,color:'#3f2a0e',stroke:'#fbbf24'};
 
 const LOCS_JOHTO={
-  newbark:{id:'newbark',name:'Нью-Барк-Таун',mLabel:'Нью-Барк',emoji:'🏙️',cx:200,cy:120,
+  newbark:{id:'newbark',name:'Нове містечко',mLabel:'Нове містечко',emoji:'🏙️',cx:200,cy:120,
     color:'#1e3a5f',stroke:'#60a5fa',badge:'Джото',badgeBg:'rgba(96,165,250,.2)',badgeTxt:'#60a5fa'},
 };
 
@@ -978,7 +987,15 @@ function initState(id){
 function pd(){return state.players[cur];}
 function pl(){return PLAYERS.find(x=>x.id===cur);}
 function cLoc(){const d=pd();return((d.region||'kanto')==='johto'?LOCS_JOHTO:LOCS)[d.location];}
-function _anyLoc(id){return LOCS[id]||LOCS_JOHTO[id];}
+// hasOwnProperty, а не просто LOCS[id]: id локації друга приходить із ЧУЖОГО
+// клієнта, і 'constructor' чи '__proto__' повернули б успадковане з
+// Object.prototype — картка малювала б «📍 Object».
+function _anyLoc(id){
+  const k=String(id);
+  if(Object.prototype.hasOwnProperty.call(LOCS,k))return LOCS[k];
+  if(Object.prototype.hasOwnProperty.call(LOCS_JOHTO,k))return LOCS_JOHTO[k];
+  return undefined;
+}
 // ═══════════ СПРАЙТИ ПОКЕМОНІВ ═══════════
 // Картинки лежать на raw.githubusercontent.com і віддаються з
 // `Cache-Control: max-age=300` — через п'ять хвилин браузер тягне всі 98
@@ -1144,6 +1161,17 @@ function statsForPeriod(d,period){
 // alphabet (і/ї/є/ґ vs ы/э/ъ); Latin titles are matched against a few common
 // diacritic sets, defaulting to English when nothing distinctive is found.
 const GENRES=['Фентезі','Пригоди','Наукова фантастика','Детектив','Дитяча','Історичне','Жахи / Містика','Реалізм','Нонфікшн','Комікс / Манга','Романтика','Класика','Антиутопія','Трилер','Інше'];
+// Як саме книгу прочитали. Кольори тут — дані, як у жанрів, тому під
+// тему не підпадають. Старі книги формату не мають: показуємо їх окремо
+// («Не вказано»), а не приписуємо їм електронну заднім числом.
+const FORMATS=[
+  {id:'ebook', label:'Електронна', emoji:'📱', color:'#38bdf8'},
+  {id:'paper', label:'Паперова',   emoji:'📕', color:'#f59e0b'},
+  {id:'audio', label:'Аудіо',      emoji:'🎧', color:'#a78bfa'},
+];
+const DEFAULT_FORMAT='ebook';
+function formatById(id){return FORMATS.find(x=>x.id===id)||null;}
+function formatLabel(b){const x=formatById(b&&b.format);return x?x.emoji+' '+x.label:'';}
 const GENRE_COLORS={
   'Фентезі':'#a78bfa','Пригоди':'#fb923c','Наукова фантастика':'#38bdf8','Детектив':'#818cf8',
   'Дитяча':'#facc15','Історичне':'#fbbf24',
@@ -1409,6 +1437,18 @@ function genreBreakdown(books){
   return Object.entries(counts).filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1])
     .map(([genre,count])=>({genre,label:genre,count,color:GENRE_COLORS[genre]||'#94a3b8'}));
 }
+function formatBreakdown(books){
+  const counts={};
+  books.forEach(b=>{const k=formatById(b.format)?b.format:'—';counts[k]=(counts[k]||0)+1;});
+  return Object.entries(counts).filter(([,n])=>n>0)
+    .map(([id,count])=>{const x=formatById(id);
+      return{label:x?x.emoji+' '+x.label:'Не вказано',count,color:x?x.color:'#94a3b8'};})
+    .sort((a,b)=>b.count-a.count);
+}
+function renderFormatDonutHTML(books){
+  return _donutCardHTML('Як читалось',formatBreakdown(books),books.length,
+    bookWord(books.length),'Немає книг за цей період');
+}
 function renderGenreDonutHTML(books){
   const breakdown=genreBreakdown(books);
   return _donutCardHTML('Топ за жанрами',breakdown,breakdown.reduce((s,g)=>s+g.count,0),
@@ -1616,13 +1656,14 @@ function renderGeneralStatsWidget(){
 
   // Language/genre/location breakdowns are always all-time — only the tiles
   // right above (books/pages counts) are scoped by the Місяць/Рік/Весь час toggle.
+  const formatDonut=renderFormatDonutHTML(d.books||[]);
   const langDonut=renderLangDonutHTML(d.books||[]);
   const genreDonut=renderGenreDonutHTML(d.books||[]);
   const locProgress=renderLocationProgressHTML(d);
 
   const periodCard=`<div class="stats-chart-card">${periodTabs}${tiles}</div>`;
 
-  el.innerHTML=`${periodCard}${chart}${langDonut}${genreDonut}${locProgress}`;
+  el.innerHTML=`${periodCard}${chart}${formatDonut}${langDonut}${genreDonut}${locProgress}`;
 }
 function showChartTip(evt,value){
   const g=evt.currentTarget;
@@ -1715,6 +1756,9 @@ const ACHIEVEMENTS=[
   {key:'gFantasy',   title:'Світоходець', emoji:'🌍', genre:'Фентезі',             unit:'фентезі',        tiers:[10]},
   {key:'gClassic',   title:'Класик',      emoji:'🏛️', genre:'Класика',             unit:'класики',        tiers:[10]},
   {key:'gHistory',   title:'Літописець',  emoji:'📜', genre:'Історичне',           unit:'книг про минуле',tiers:[10]},
+  {key:'gKids',      title:'Казкар',      emoji:'🧸', genre:'Дитяча',              unit:'дитячих книг',   tiers:[10]},
+  {key:'gNonfic',    title:'Всезнайко',   emoji:'🔬', genre:'Нонфікшн',            unit:'нонфікшну',      tiers:[10]},
+  {key:'gThriller',  title:'Вартовий',    emoji:'🌩️', genre:'Трилер',              unit:'трилерів',       tiers:[10]},
   {key:'genreVariety',title:'Всеїдний читач',emoji:'🎭',unit:'жанрів серед прочитаного',tiers:[3,6,10,15],
     valueFn:d=>new Set((d.books||[]).map(b=>b.genre).filter(Boolean)).size,
     reward:{pid:146,name:'Молтрес'},
@@ -1848,10 +1892,14 @@ const WALLS=[
   {id:'doors',  name:'Двері між світами',file:'wall_doors',   ach:'gFantasy',   tier:0, unit:'фентезі'},
   {id:'victorian',name:'Вікторіанська зала',file:'wall_victorian',ach:'gClassic',tier:0, unit:'класики'},
   {id:'papyrus',name:'Зала папірусів',   file:'wall_papyrus', ach:'gHistory',   tier:0, unit:'про минуле'},
+  {id:'blocks', name:'Кімната з кубиків',file:'wall_blocks',  ach:'gKids',      tier:0, unit:'дитячих'},
+  {id:'datacenter',name:'Датацентр',     file:'wall_datacenter',ach:'gNonfic',  tier:0, unit:'нонфікшну'},
+  {id:'lighthouse',name:'Маяк у шторм',  file:'wall_lighthouse',ach:'gThriller',tier:0, unit:'трилерів'},
 ];
 const DEFAULT_WALL='classic';
 function wallById(id){return WALLS.find(w=>w.id===id)||WALLS[0];}
 function wallForAch(key){return WALLS.find(w=>w.ach===key)||null;}
+function achByKey(key){return key?ACHIEVEMENTS.find(a=>a.key===key):null;}
 function wallAch(w){return w.ach?ACHIEVEMENTS.find(a=>a.key===w.ach):null;}
 function wallUnlocked(d,w){
   if(!w.loc&&!w.ach)return true;
@@ -1879,24 +1927,77 @@ function applyWall(){
 function toggleWallLocks(){_wallLocksOpen=!_wallLocksOpen;openProfileSettings();}
 // Арт на весь екран, БЕЗ заслінки: у грі він навмисно приглушений, тож
 // інакше подивитись на нього ніде.
+let _wallFsList=[],_wallFsIdx=0;
 function openWallPreview(id){
   const d=pd();const w=wallById(id);
   if(!d||!wallUnlocked(d,w))return;
-  const isCur=curWall().id===w.id;
-  closeWallPreview(true);
-  document.body.insertAdjacentHTML('beforeend',
-    '<div class="wall-fs" id="wall-fs" onclick="closeWallPreview()">'+
-      '<div class="wall-fs-img" style="background-image:url(\''+w.file+'.webp\')"></div>'+
-      '<div class="wall-fs-bar" onclick="event.stopPropagation()">'+
-        '<div class="wall-fs-nm">'+w.name+'</div>'+
-        (isCur
-          ?'<div class="wall-fs-cur">✓ Твої обої</div>'
-          :'<button class="btn-ok" onclick="setWall(\''+w.id+'\');closeWallPreview(true)">Поставити</button>')+
-        '<button class="btn-cancel" onclick="closeWallPreview(true)">Закрити</button>'+
-      '</div>'+
-    '</div>');
+  _wallFsList=unlockedWallIds(d);
+  _wallFsIdx=Math.max(0,_wallFsList.indexOf(w.id));
+  closeWallPreview();
+  document.body.insertAdjacentHTML('beforeend','<div class="wall-fs" id="wall-fs"></div>');
+  _wallFsRender();
+  _wallFsBind();
 }
-function closeWallPreview(){const el=document.getElementById('wall-fs');if(el)el.remove();}
+function _wallFsRender(){
+  const el=document.getElementById('wall-fs');if(!el)return;
+  const w=wallById(_wallFsList[_wallFsIdx]);
+  const isCur=curWall().id===w.id;
+  const many=_wallFsList.length>1;
+  el.innerHTML=
+    '<div class="wall-fs-img" style="background-image:url(\''+w.file+'.webp\')"></div>'+
+    (many?'<button class="wall-fs-arrow l" aria-label="Попередні" onclick="wallFsGo(-1)">‹</button>'+
+          '<button class="wall-fs-arrow r" aria-label="Наступні" onclick="wallFsGo(1)">›</button>':'')+
+    '<div class="wall-fs-bar">'+
+      '<div class="wall-fs-nm">'+w.name+
+        (many?'<i>'+(_wallFsIdx+1)+' з '+_wallFsList.length+'</i>':'')+'</div>'+
+      (isCur
+        ?'<div class="wall-fs-cur">✓ Твої обої</div>'
+        :'<button class="btn-ok" onclick="setWall(\''+w.id+'\');closeWallPreview()">Поставити</button>')+
+      '<button class="btn-cancel" onclick="closeWallPreview()">Закрити</button>'+
+    '</div>';
+}
+function wallFsGo(step){
+  if(_wallFsList.length<2)return;
+  _wallFsIdx=(_wallFsIdx+step+_wallFsList.length)%_wallFsList.length;
+  _wallFsRender();
+}
+// Свайп і стрілки. Клік по тлу закриває, але тільки якщо це справді клік,
+// а не кінець свайпу — інакше гортання щоразу зачиняло б прев'ю.
+function _wallFsBind(){
+  const el=document.getElementById('wall-fs');if(!el)return;
+  let x0=null,y0=null,moved=false;
+  const start=e=>{const t=e.touches?e.touches[0]:e;x0=t.clientX;y0=t.clientY;moved=false;};
+  const move=e=>{if(x0===null)return;const t=e.touches?e.touches[0]:e;
+    if(Math.abs(t.clientX-x0)>10||Math.abs(t.clientY-y0)>10)moved=true;};
+  const end=e=>{
+    if(x0===null)return;
+    const t=(e.changedTouches?e.changedTouches[0]:e);
+    const dx=t.clientX-x0,dy=t.clientY-y0;
+    x0=null;
+    if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)){wallFsGo(dx<0?1:-1);moved=true;}
+  };
+  el.addEventListener('touchstart',start,{passive:true});
+  el.addEventListener('touchmove',move,{passive:true});
+  el.addEventListener('touchend',end);
+  el.addEventListener('mousedown',start);
+  el.addEventListener('mousemove',move);
+  el.addEventListener('mouseup',end);
+  el.addEventListener('click',e=>{
+    if(moved){moved=false;return;}
+    if(e.target===el||e.target.classList.contains('wall-fs-img'))closeWallPreview();
+  });
+  el._wallKeys=e=>{
+    if(e.key==='ArrowRight')wallFsGo(1);
+    else if(e.key==='ArrowLeft')wallFsGo(-1);
+    else if(e.key==='Escape')closeWallPreview();
+  };
+  document.addEventListener('keydown',el._wallKeys);
+}
+function closeWallPreview(){
+  const el=document.getElementById('wall-fs');if(!el)return;
+  if(el._wallKeys)document.removeEventListener('keydown',el._wallKeys);
+  el.remove();
+}
 function setWall(id){
   const d=pd();if(!d)return;
   const w=wallById(id);
@@ -2212,13 +2313,24 @@ function pickTheme(id){
 
 // Усе, що містить пароль або токен, ходить через POST — у GET параметри
 // потрапили б в історію браузера і в логи виконання Apps Script.
+// Таймаут обов'язковий, і не заради ввічливості. Рейс у хмару йде ПО ОДНОМУ
+// на гравця (_saveBusy), тому запит, який не завершується ніколи, назавжди
+// глушить усі наступні збереження: прапорець не знімається, а індикатор
+// лишається на 💾 — тобто виглядає як «зберігаю», а не як «зламалось».
+// 30 с із запасом перекривають холодний старт Apps Script (там секунди).
+const API_TIMEOUT=30000;
 async function _api(payload){
   if(!SCRIPT_URL)return{error:'no-backend'};
+  // AbortSignal.timeout немає в Safari до 16 — там лишаємось без таймауту,
+  // як було, замість того щоб упасти на самому виклику.
+  let signal;
+  try{signal=AbortSignal.timeout(API_TIMEOUT);}catch(e){signal=undefined;}
   try{
     const res=await fetch(SCRIPT_URL,{
       method:'POST',
       body:JSON.stringify(payload),
       headers:{'Content-Type':'text/plain;charset=utf-8'},
+      signal:signal,
     });
     return await res.json();
   }catch(e){
@@ -2639,6 +2751,10 @@ function sanitizeFriends(list){
     if(Array.isArray(f.q))f.q=f.q.filter(x=>x&&typeof x==='object'&&
       /^[A-Za-z0-9]{1,32}$/.test(String(x.id||''))&&GENRES.indexOf(String(x.g))>=0).slice(0,20);
     else delete f.q;
+    // Локація йде в ключ мапи (розстановка фішок) і в пошук по LOCS. Лишаємо
+    // тільки той id, який у нас справді є: чужого рядка на цьому місці бути
+    // не повинно взагалі.
+    if(f.loc!==undefined&&!_anyLoc(f.loc))delete f.loc;
     // рік іде в onclick="setFriendWrapYear(…)", місяць — в індекс масиву назв.
     if(f.wraps&&typeof f.wraps==='object'&&!Array.isArray(f.wraps)){
       const w={};
@@ -2956,7 +3072,11 @@ function reaxBtnHTML(f){
 // чіпами. Реакція другого друга не затирає першу ні в даних (на сервері запис
 // ідентифікується парою «хто + яка книга»), ні на екрані.
 function reaxGroups(){
-  const by={};
+  // Ключ реакції пише ТОЙ, ХТО РЕАГУЄ, і бекенд кладе його в наш рядок як є
+  // (лише обрізає до 120 символів). Тому мапа без прототипу — інакше
+  // key:'__proto__' клав увесь таб друзів, і запис при цьому лежав би на
+  // сервері, тобто ламав його заново після кожного перезавантаження.
+  const by=Object.create(null);
   (friendsData.reax||[]).forEach(r=>{
     if(!r||!r.k)return;
     const k=String(r.k),ts=+r.ts||0;
@@ -3743,7 +3863,11 @@ function checkUnlocks(){
 // Фішки гравців малюються однаково в обох регіонах — різняться лише радіус
 // вузла, розмір фішки й набір локацій. Раніше цей блок стояв двічі копією.
 function _mapMarkersHTML(locs,region,up,dotR,strokeW){
-  const byLoc={};
+  // Object.create(null), а не {}: ключем тут є location друга, тобто рядок із
+  // чужого клієнта. У звичайного об'єкта byLoc['__proto__'] віддав би
+  // Object.prototype (він же «істинний»), .push у нього немає — і весь
+  // renderMap падав, забираючи з собою і збереження в doMove, і таб друзів.
+  const byLoc=Object.create(null);
   PLAYERS.forEach(p=>{
     const sp=state.players[p.id];if(!sp)return;
     if((sp.region||'kanto')!==region)return;
@@ -3764,8 +3888,8 @@ function renderMap(){
   const region=d.region||'kanto';
   const johtoUnlocked=d.unlockedLocs.includes('map2');
   document.getElementById('map-region-tabs').innerHTML=`<div style="display:flex;gap:4px;padding:8px 8px 0">
-    <div style="flex:1;padding:6px 4px;font-size:10px;font-weight:700;text-align:center;border-radius:7px 7px 0 0;border:1px solid ${region==='kanto'?'var(--ok)':'rgba(var(--ink),.07)'};border-bottom:none;background:${region==='kanto'?'rgba(var(--ok-rgb),.12)':'rgba(var(--ink),.02)'};color:${region==='kanto'?'var(--ok)':'var(--txt-4)'}">🗺️ Регіон Канто</div>
-    <div style="flex:1;padding:6px 4px;font-size:10px;font-weight:700;text-align:center;border-radius:7px 7px 0 0;border:1px solid ${region==='johto'?'#60a5fa':'rgba(var(--ink),.05)'};border-bottom:none;background:${region==='johto'?'rgba(96,165,250,.12)':'rgba(var(--ink),.01)'};color:${region==='johto'?'#60a5fa':johtoUnlocked?'var(--txt-4)':'var(--txt-5)'}">${johtoUnlocked?'🌏':'🔒'} Регіон Джото</div>
+    <div style="flex:1;padding:6px 4px;font-size:10px;font-weight:700;text-align:center;border-radius:7px 7px 0 0;border:1px solid ${region==='kanto'?'var(--ok)':'rgba(var(--ink),.07)'};border-bottom:none;background:${region==='kanto'?'rgba(var(--ok-rgb),.12)':'rgba(var(--ink),.02)'};color:${region==='kanto'?'var(--ok)':'var(--txt-4)'}">🗺️ Світанок</div>
+    <div style="flex:1;padding:6px 4px;font-size:10px;font-weight:700;text-align:center;border-radius:7px 7px 0 0;border:1px solid ${region==='johto'?'#60a5fa':'rgba(var(--ink),.05)'};border-bottom:none;background:${region==='johto'?'rgba(96,165,250,.12)':'rgba(var(--ink),.01)'};color:${region==='johto'?'#60a5fa':johtoUnlocked?'var(--txt-4)':'var(--txt-5)'}">${johtoUnlocked?'🌏':'🔒'} Новий регіон</div>
   </div>`;
   if(region==='johto'){
     document.getElementById('map-png').style.display='none';
@@ -3792,7 +3916,7 @@ function renderMap(){
   document.getElementById('map-png').style.display='';
   document.getElementById('map-bg').style.display='none';
   document.getElementById('map-edges').innerHTML='';
-  const r=26;let nh='';
+  const r=25;let nh='';
   Object.values(LOCS).forEach(loc=>{
     const ul=d.unlockedLocs.includes(loc.id);
     const isHere=d.location===loc.id;
@@ -3809,6 +3933,12 @@ function renderMap(){
     } else if(!isHere){
       nh+=`<circle cx="${loc.cx}" cy="${loc.cy}" r="${r}" fill="transparent" stroke="rgba(255,255,255,.08)" stroke-width="1" style="cursor:pointer" onclick="onLocClick('${loc.id}')"/>`;
     }
+    // Лейбочка під медальйоном. Обведення, а не плашка: ширину тексту
+    // в SVG не порахувати, а плашка «на око» рвалась би на довгих назвах.
+    const ly=loc.cy+r+8;   // однаковий відступ для всіх; r+8 — межа, за якої нижній ще влазить
+    nh+=`<text x="${loc.cx}" y="${ly}" text-anchor="middle" font-size="9"
+      font-family="sans-serif" font-weight="700" fill="${ul?'#f1f5f9':'#94a3b8'}"
+      style="paint-order:stroke;stroke:rgba(3,8,20,.85);stroke-width:3.5;stroke-linejoin:round;pointer-events:none">${loc.mLabel||loc.name}</text>`;
     if(ul&&isLocComplete(loc.id)){
       nh+=`<circle cx="${loc.cx+r-2}" cy="${loc.cy-r+2}" r="7" fill="#fbbf24" stroke="#070e1a" stroke-width="1.5"/>`;
       nh+=`<text x="${loc.cx+r-2}" y="${loc.cy-r+3}" text-anchor="middle" dominant-baseline="middle" font-size="8.5" font-weight="700" font-family="sans-serif" fill="#070e1a">✓</text>`;
@@ -3817,7 +3947,7 @@ function renderMap(){
   nh+=`<g style="cursor:pointer" onclick="openShop()">`
     +`<circle cx="${SHOP_NODE.cx}" cy="${SHOP_NODE.cy}" r="22" fill="${SHOP_NODE.color}" stroke="${SHOP_NODE.stroke}" stroke-width="2"/>`
     +`<text x="${SHOP_NODE.cx}" y="${SHOP_NODE.cy+1}" text-anchor="middle" dominant-baseline="middle" font-size="15" font-family="sans-serif">🛒</text>`
-    +`<text x="${SHOP_NODE.cx}" y="${SHOP_NODE.cy+22+11}" text-anchor="middle" font-size="8.5" fill="#e2e8f0" font-family="sans-serif" font-weight="600">Магазин</text>`
+    +`<text x="${SHOP_NODE.cx}" y="${SHOP_NODE.cy+22+8}" text-anchor="middle" font-size="8.5" fill="#f1f5f9" font-family="sans-serif" font-weight="700" style="paint-order:stroke;stroke:rgba(3,8,20,.85);stroke-width:3.5;stroke-linejoin:round">Магазин</text>`
     +`</g>`;
   document.getElementById('map-nodes').innerHTML=nh;
   document.getElementById('map-markers').innerHTML=_mapMarkersHTML(LOCS,'kanto',r+7,6,2);
@@ -4068,7 +4198,11 @@ function openProfileSettings(){
   const themeCards=THEMES.map(t=>themeCardHTML(t,t.id===thm)).join('');
   const wallNow=curWall();
   const wallOpen=WALLS.filter(w=>wallUnlocked(d,w));
-  const wallLocked=WALLS.filter(w=>!wallUnlocked(d,w));
+  const wallGroup=w=>w.loc?0:(achByKey(w.ach)&&achByKey(w.ach).genre?2:1);
+  const wallLocked=WALLS.filter(w=>!wallUnlocked(d,w))
+    .map((w,i)=>({w,i}))
+    .sort((a,b)=>wallGroup(a.w)-wallGroup(b.w)||a.i-b.i)
+    .map(x=>x.w);
   const wallCards=wallOpen.map(w=>wallCardHTML(w,d,w.id===wallNow.id)).join('');
   const wallLockedCards=wallLocked.map(w=>wallCardHTML(w,d,false)).join('');
   const swatches=PROFILE_COLORS.map(c=>`<div onclick="selectProfileColor('${c}')" id="pclr${c.replace('#','')}" style="width:36px;height:36px;border-radius:50%;background:${c};cursor:pointer;border:3px solid ${c===curClr?'var(--txt-hi)':'transparent'};box-sizing:border-box;flex-shrink:0"></div>`).join('');
@@ -4283,6 +4417,10 @@ function onAddStarClick(event,i){
   document.getElementById('add-book-stars').innerHTML=starRatingHTML(_addBookRating,true,'onAddStarClick');
 }
 
+function formatTabsHTML(cur,onclick){
+  return`<div class="goal-tabs" style="margin-bottom:10px">${FORMATS.map(x=>
+    `<button type="button" class="goal-tab ${x.id===cur?'act':''}" onclick="${onclick}('${x.id}')">${x.emoji} ${x.label}</button>`).join('')}</div>`;
+}
 function _spSectionHdr(key,label){
   const open=_spSectionOpen[key];
   return`<div class="form-section-title" onclick="toggleSpSection('${key}')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-bottom:${open?'10px':'0'}">
@@ -4310,12 +4448,14 @@ function _buildPagesHTML(){
           <input type="text" id="sp-author" class="finput" placeholder="Дж. К. Роулінґ">
           <div class="flbl">Кількість сторінок</div>
           <input type="number" id="sp-pages" class="finput" min="1" oninput="updSP()">
+          <div class="flbl">Як прочитана</div>
+          <div id="sp-format">${formatTabsHTML(_addBookFormat,'setAddBookFormat')}</div>
           <div class="flbl" style="opacity:.6">Обкладинка</div>
           <div class="cover-preview-wrap" onclick="toggleCoverEdit()" style="margin-bottom:8px">
             <div class="cover-preview-box" id="sp-cover-preview">🖼️</div>
           </div>
           <div id="sp-cover-editform" style="display:none;margin-bottom:8px" onclick="event.stopPropagation()">
-            <input type="url" id="sp-cover" class="finput" placeholder="https://…" style="font-size:11px;margin-bottom:6px" oninput="updSpCoverPreview()">
+            <input type="url" id="sp-cover" class="finput" placeholder="https://…" style="font-size:11px;margin-bottom:6px" oninput="updSpCoverPreview()" onfocus="this.select()">
             <button type="button" class="btn-ok" style="width:100%;padding:8px;font-size:12px" onclick="confirmCoverEdit()">Зберегти обкладинку</button>
           </div>
         </div>
@@ -4350,6 +4490,16 @@ function openSpSection(key){
   document.getElementById('sp-section-'+key).style.display='';
   document.getElementById('sp-chevron-'+key).textContent='▾';
 }
+function setAddBookFormat(id){
+  _addBookFormat=id;
+  const el=document.getElementById('sp-format');
+  if(el)el.innerHTML=formatTabsHTML(_addBookFormat,'setAddBookFormat');
+}
+function setBdFormat(id){
+  _bdFormat=id;
+  const el=document.getElementById('bd-format');
+  if(el)el.innerHTML=formatTabsHTML(_bdFormat,'setBdFormat');
+}
 function updSpCoverPreview(){
   const url=(document.getElementById('sp-cover').value||'').trim();
   const el=document.getElementById('sp-cover-preview');
@@ -4359,7 +4509,7 @@ function toggleCoverEdit(){
   const form=document.getElementById('sp-cover-editform');
   const open=form.style.display==='none'||!form.style.display;
   form.style.display=open?'':'none';
-  if(open)document.getElementById('sp-cover').focus();
+  if(open){const el=document.getElementById('sp-cover');el.focus();el.select();}
 }
 function confirmCoverEdit(){
   document.getElementById('sp-cover-editform').style.display='none';
@@ -4439,6 +4589,7 @@ function _renderBookHTML(book, i, sc=1){
 }
 
 let _libViewMode='shelves',_libSortBy='size',_libPath='date';
+let _addBookFormat=DEFAULT_FORMAT,_bdFormat=DEFAULT_FORMAT;
 // Закриті обої згорнуті за замовчуванням — при вісімнадцяти артах це
 // сімнадцять замків, і вони давлять сильніше, ніж мотивують.
 let _wallLocksOpen=false;
@@ -4535,11 +4686,13 @@ function _buildJourneyHTML(books){
     `<path d="${d}" fill="none" stroke="${stroke}" stroke-width="22" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
   const segDash=d=>
     `<path d="${d}" fill="none" style="stroke:rgba(var(--ink),.18)" stroke-width="2" stroke-dasharray="6 10" vector-effect="non-scaling-stroke"/>`;
+  const segBase=d=>
+    `<path d="${d}" fill="none" style="stroke:var(--app)" stroke-width="22" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
   const c0=_colorFor(list[0].b.title)[0],cN=_colorFor(list[n-1].b.title)[0];
   // «В'їзд» і «виїзд» — щоб прапорці стояли на дорозі, а не в повітрі.
   const dIn=`M ${xOf(0)} ${yOf(0)-JN_STUB} L ${xOf(0)} ${yOf(0)}`;
   const dOut=`M ${xOf(n-1)} ${yOf(n-1)} L ${xOf(n-1)} ${yOf(n-1)+JN_STUB}`;
-  let defs='',road=seg(dIn,c0)+seg(dOut,cN),dash=segDash(dIn)+segDash(dOut);
+  let defs='',road=seg(dIn,c0)+seg(dOut,cN),dash=segDash(dIn)+segDash(dOut),base=segBase(dIn)+segBase(dOut);
   for(let i=0;i<n-1;i++){
     const[c1]=_colorFor(list[i].b.title),[c2]=_colorFor(list[i+1].b.title);
     const x1=xOf(i),y1=yOf(i),x2=xOf(i+1),y2=yOf(i+1),ym=(y1+y2)/2;
@@ -4548,10 +4701,11 @@ function _buildJourneyHTML(books){
       <stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient>`;
     road+=seg(d,`url(#jng${i})`);
     dash+=segDash(d);
+    base+=segBase(d);
   }
   const svg=`<svg class="jn-road" height="${H}" viewBox="0 0 100 ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
     <defs>${defs}</defs>
-    <g style="opacity:var(--jn-road-op)">${road}</g>${dash}
+    <g>${base}</g><g style="opacity:var(--jn-road-op)">${road}</g>${dash}
   </svg>`;
 
   // ── вузли, пунктири й карточки ──
@@ -4874,15 +5028,20 @@ function openBookDetail(i,playerId){
   const pdata=state.players[pid];const book=(pdata&&pdata.books||[])[i];if(!book)return;
   const editable=pid===cur;
   _bdRating=book.rating||0;
+  _bdFormat=book.format||DEFAULT_FORMAT;
   const [top,bot]=_colorFor(book.title);
   const cw=_coverW(book.pages||1),h=_bookH(book.pages||1);
   const heroStyle=book.coverUrl?`background-image:url('${book.coverUrl}')`:`background:linear-gradient(150deg,${top} 0%,${bot} 100%)`;
   const coverBoxHtml=`<div id="bd-cover-box" style="width:${cw}px;height:${h}px;border-radius:6px;overflow:hidden;box-shadow:0 10px 24px rgba(var(--shadow),.45);${book.coverUrl?'':`background:linear-gradient(150deg,${top} 0%,${bot} 100%);`}">${book.coverUrl?`<img id="bd-cover-img" src="${book.coverUrl}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`:''}</div>`;
   const coverHtml=editable?`<div class="bd-cover-tap" onclick="toggleBdCoverEdit()">${coverBoxHtml}</div>`:coverBoxHtml;
   const coverEditForm=editable?`<div id="bd-cover-editform" style="display:none;margin-bottom:12px" onclick="event.stopPropagation()">
-      <input type="url" id="bd-cover-input" class="finput" placeholder="https://…" style="font-size:11px;margin-bottom:6px" value="${book.coverUrl||''}" oninput="updBdCoverPreview()">
+      <input type="url" id="bd-cover-input" class="finput" placeholder="https://…" style="font-size:11px;margin-bottom:6px" value="${book.coverUrl||''}" oninput="updBdCoverPreview()" onfocus="this.select()">
       <button class="btn-ok" style="width:100%;padding:10px;font-size:13px" onclick="confirmBdCoverEdit()">Зберегти обкладинку</button>
     </div>`:'';
+  const formatHtml=editable
+    ?`<div class="flbl" style="opacity:.6">Як прочитана</div>
+       <div id="bd-format">${formatTabsHTML(_bdFormat,'setBdFormat')}</div>`
+    :(formatLabel(book)?`<div style="text-align:center;font-size:12px;color:var(--txt-3);margin-bottom:12px">${formatLabel(book)}</div>`:'');
   const genreHtml=editable?`<div class="flbl" style="opacity:.6">Жанр</div>
     <select id="bd-genre" class="finput">
       <option value="">Оберіть жанр</option>
@@ -4902,6 +5061,7 @@ function openBookDetail(i,playerId){
     ${book.q?`<div style="text-align:center;font-size:11px;color:var(--ok);margin-bottom:8px">🤝 прочитано разом · ${esc(book.q.n)} · квест «${esc(book.q.g)}»</div>`:''}
     <div id="bd-stars" style="display:flex;justify-content:center;margin-bottom:8px">${starRatingHTML(_bdRating,editable,'onBdStarClick')}</div>
     <div style="text-align:center;font-size:11px;color:var(--txt-3);margin-bottom:12px">${book.pages} стор. · ${esc(uaDate(book))}</div>
+    ${formatHtml}
     ${genreHtml}
     ${footer}`);
 }
@@ -4932,6 +5092,7 @@ function saveBookDetail(i){
   book.coverUrl=cleanCoverUrl(url);
   if(url&&!book.coverUrl){showToast('Обкладинка: потрібне звичайне https-посилання');return;}
   if(genre)book.genre=genre;else delete book.genre;
+  book.format=_bdFormat;
   if(_bdRating)book.rating=_bdRating;else delete book.rating;
   saveToCloud(cur);closeModal();renderLibraryTab();renderAchievementsWidget();renderGeneralStatsWidget();
   celebrateNewAchievements(d,beforeAch);
@@ -5006,7 +5167,7 @@ function submitPages(){
   d.booksRead=(d.booksRead||0)+1;
   d.coins=(d.coins||0)+coins;
   if(!d.books)d.books=[];
-  const book={title:cleanBookText(title),author:cleanBookText(author),pages,ts:Date.now(),coverUrl:cleanCoverUrl(coverUrl),coinsEarned:coins};
+  const book={title:cleanBookText(title),author:cleanBookText(author),pages,ts:Date.now(),coverUrl:cleanCoverUrl(coverUrl),coinsEarned:coins,format:_addBookFormat};
   if(_addBookRating)book.rating=_addBookRating;
   if(genre)book.genre=genre;
   d.books.push(book);
