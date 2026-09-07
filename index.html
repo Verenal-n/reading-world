@@ -1719,23 +1719,23 @@ const ACHIEVEMENTS=[
   // ── книги: скільки, які завтовшки, як оцінені ──
   {key:'books',title:'Книгоман',emoji:'📚',unit:'книг',tiers:[10,50,100,200,300,500],
     valueFn:d=>(d.books||[]).length,
-    reward:{pid:151,name:'Мью'},
+    reward:{pid:151,name:'Mew'},
     desc:t=>`Прочитати ${t} ${bookWord(t)}`},
   {key:'pages',title:'Сторінкоїд',emoji:'📖',unit:'сторінок',tiers:[500,5000,10000,50000,100000,150000],
     valueFn:d=>(d.books||[]).reduce((s,b)=>s+(b.pages||0),0),
-    reward:{pid:150,name:'Мьюту'},
+    reward:{pid:150,name:'Mewtwo'},
     desc:t=>`Прочитати ${t} сторінок`},
   {key:'longestBook',title:'Товстенна книга',emoji:'📔',unit:'стор. в 1 книзі',tiers:[500,700,900],
     valueFn:d=>(d.books||[]).reduce((m,b)=>Math.max(m,b.pages||0),0),
     desc:t=>`Прочитати книгу на ${t}+ сторінок`},
   {key:'fiveStars',title:'Найвища оцінка',emoji:'⭐',unit:'книг з оцінкою 5',tiers:[5,10,20],
     valueFn:d=>(d.books||[]).filter(b=>b.rating===5).length,
-    reward:{pid:145,name:'Запдос'},
+    reward:{pid:145,name:'Zapdos'},
     desc:t=>`Оцінити ${t} ${bookWord(t)} на 5 зірок`},
   // ── автори ──
   {key:'author',title:'Фанат автора',emoji:'✍️',unit:'книг одного автора',tiers:[3,5,10,20],
     valueFn:maxByAuthor,
-    reward:{pid:144,name:'Артикуно'},
+    reward:{pid:144,name:'Articuno'},
     desc:t=>`Прочитати ${t} ${bookWord(t)} одного автора`},
   // ── жанри й мови ──
   // П'ять жанрових: кожна дає обої свого настрою. Поріг — 5 книг на
@@ -1761,7 +1761,7 @@ const ACHIEVEMENTS=[
   {key:'gThriller',  title:'Вартовий',    emoji:'🌩️', genre:'Трилер',              unit:'трилерів',       tiers:[10]},
   {key:'genreVariety',title:'Всеїдний читач',emoji:'🎭',unit:'жанрів серед прочитаного',tiers:[3,6,10,15],
     valueFn:d=>new Set((d.books||[]).map(b=>b.genre).filter(Boolean)).size,
-    reward:{pid:146,name:'Молтрес'},
+    reward:{pid:146,name:'Moltres'},
     desc:t=>`Прочитати книги ${t} різних жанрів`},
   {key:'polyglot',title:'Поліглот',emoji:'🌐',unit:'мов серед прочитаного',tiers:[2,3,4],
     valueFn:d=>langBreakdown(d.books||[]).length,
@@ -1770,16 +1770,16 @@ const ACHIEVEMENTS=[
   {key:'species',title:'Колекціонер видів',emoji:'🐣',unit:'видів',tiers:[10,25,50,100],
     valueFn:d=>Object.keys(d.progress||{}).length,
     iconFn:d=>lastCaughtSprite(d),
-    reward:{pid:249,name:'Лугія'},
+    reward:{pid:249,name:'Lugia'},
     desc:t=>`Спіймати ${t} різних видів покемонів`},
   {key:'mega',title:'Мега-майстер',emoji:'🐉',unit:'мег',tiers:[1,5,10,15],
     valueFn:d=>megasCaughtIn(d,ALL_KANTO_LOCS),
     iconFn:d=>lastCaughtSprite(d,(ch,idx)=>ch.stages[idx].mega),
-    reward:{pid:243,name:'Райкоу'},
+    reward:{pid:243,name:'Raikou'},
     desc:t=>`Виростити ${t} ${pokeWord(t)} до Мега-еволюції`},
   {key:'locations',title:'Дослідник',emoji:'🗺️',unit:'локацій',tiers:[3,5,7],
     valueFn:d=>(d.unlockedLocs||[]).length,
-    reward:{pid:244,name:'Ентей'},   // переїхав зі знятої «Знавець жанру»
+    reward:{pid:244,name:'Entei'},   // переїхав зі знятої «Знавець жанру»
     desc:t=>`Відкрити ${t} ${locWord(t)}`},
   {key:'bought',title:'Покупець',emoji:'🛒',unit:'покупок',tiers:[3,10,25,50],
     valueFn:d=>d.totalBought||0,
@@ -1797,11 +1797,11 @@ const ACHIEVEMENTS=[
     desc:t=>`Прочитати ${t} ${bookWord(t)} за один місяць`},
   {key:'streak',title:'Серія без пропусків',emoji:'🔥',unit:'місяців поспіль',tiers:[2,3,6,12],
     valueFn:d=>d.bestGoalStreak||0,
-    reward:{pid:245,name:'Суікун'},
+    reward:{pid:245,name:'Suicune'},
     desc:t=>`Виконати місячну ціль ${t} ${pluralUA(t,'місяць','місяці','місяців')} поспіль`},
   {key:'longPlayer',title:'Довгограй',emoji:'📆',unit:'місяців з хоча б 1 книгою',tiers:[3,6,12,24],
     valueFn:distinctActiveMonths,
-    reward:{pid:250,name:'Хо-Ох'},
+    reward:{pid:250,name:'Ho-Oh'},
     desc:t=>`Прочитати хоча б 1 книгу у ${t} різних місяцях`},
 ];
 // Жанровим ачівкам valueFn і desc робляться з поля genre: інакше назва
@@ -2011,17 +2011,85 @@ function setWall(id){
 }
 // Що вже показали — лежить у сейві списком, а не рахується щоразу:
 // інакше модалка загубиться, якщо гру закрили до того, як її побачили.
-function checkWallUnlocks(){
+// noSave — для виклику на ВХОДІ в гру. Там зберігати нельзя: свій saveToCloud
+// поставив би локальній копії свіжу мітку `_ts` ще до того, як bootSync звірить
+// її з хмарою, і локальне після цього завжди вигравало б — вибір обоїв з
+// іншого пристрою приїжджав і одразу затирався. У грі (після ачівки) сейв
+// потрібен і лишається.
+function checkWallUnlocks(noSave){
   const d=pd();if(!d)return[];
   if(!d.wallsSeen)d.wallsSeen=[DEFAULT_WALL];
   const fresh=WALLS.filter(w=>wallUnlocked(d,w)&&!d.wallsSeen.includes(w.id));
   if(!fresh.length)return[];
   fresh.forEach(w=>d.wallsSeen.push(w.id));
-  saveToCloud(cur);
+  if(!noSave)saveToCloud(cur);
   return fresh;
 }
-function celebrateNewWalls(){
-  checkWallUnlocks().forEach(w=>qM(()=>mHTML(
+// ── обої за локацію вручаються В ТОМУ Ж попапі, що й сама локація ──
+// Раніше вони їхали окремою модалкою через celebrateNewWalls(), а та
+// викликалась ЛИШЕ з celebrateNewAchievements(). Тому обої за локацію
+// чекали найближчої ачівки й вилітали під випадкову дію — «додав книгу, а
+// мені обої за печери». А з магазину (найчастіший шлях відкриття локації!)
+// їх не показувало взагалі: buyChainStage має власну чергу й celebrateNewWalls
+// не кликав ніколи.
+function wallForLoc(locId){return WALLS.find(w=>w.loc===locId)||null;}
+
+// Забирає обої «в руки»: якщо вони справді відкриті й ще не показані —
+// позначає показаними й повертає. Інакше null. Позначаємо саме тут, щоб
+// celebrateNewWalls() не вручив ті самі обої вдруге окремою модалкою.
+function takeWall(w){
+  const d=pd();if(!d||!w)return null;
+  if(!d.wallsSeen)d.wallsSeen=[DEFAULT_WALL];
+  if(!wallUnlocked(d,w)||d.wallsSeen.includes(w.id))return null;
+  d.wallsSeen.push(w.id);
+  return w;
+}
+
+// Пара «локація + її обої» на кожну щойно відкриту локацію.
+// САМ НЕ ЗБЕРІГАЄ — і це навмисно. Свій saveToCloud тут ставив мітку часу
+// `_ts` на локальну копію ще до того, як bootSync звірить її з хмарою, і
+// локальне після цього ВСЕГДА вигравало: вибір обоїв з іншого пристрою
+// приїжджав і одразу затирався. Тому виклик іде ПЕРЕД наявним saveToCloud
+// у doCatch/buyChainStage і їде разом з ним, а на вході в гру не зберігає
+// нічого — точно як checkUnlocks() до цього.
+function openedWithWalls(opened){
+  return(opened||[]).map(loc=>({loc:loc,wall:takeWall(wallForLoc(loc.id))}));
+}
+
+// Вміст попапа «відкрито локацію». Є обої — арт стоїть згори, а медальйон
+// локації налазить на нього знизу: одразу видно і що відкрилось, і що за це
+// дали. Немає обоїв (це лише 'oak') — просто медальйон.
+function _locOpenedContentHTML(loc,w){
+  const head=w
+    ?'<div class="wall-hero" style="background-image:url(\''+w.file+'.webp\')"></div>'+
+     '<div style="margin-top:-34px;position:relative">'+locIconEl(loc.id,60)+'</div>'
+    :locIconEl(loc.id,72);
+  const desc=w
+    ?loc.emoji+' '+loc.name+' тепер доступна.<br>І обої «'+w.name+'» — тепер твої.'
+    :loc.emoji+' '+loc.name+' тепер доступна!';
+  return head+'<div class="m-title" style="margin-top:10px">Відкрито!</div>'+
+    '<div class="m-desc">'+desc+'</div>';
+}
+// Кнопки ті самі, але «далі» різне: у звичайній черзі це closeModal(), а в
+// магазині — _shopFlowNext(), щоб гравець лишився в магазині, а не вилетів.
+function _locOpenedBtnsHTML(w,next){
+  return'<div class="m-btns">'+(w
+    ?'<button class="btn-ok" onclick="setWall(\''+w.id+'\');'+next+'">Поставити обої</button>'+
+     '<button class="btn-cancel" onclick="'+next+'">Пізніше</button>'
+    :'<button class="btn-ok" onclick="'+next+'">Чудово!</button>')+'</div>';
+}
+// Ставить попапи в чергу. Викликати НЕГАЙНО після checkUnlocks(), у тому
+// самому обробнику: попап мусить прилетіти на дію, яка відкрила локацію,
+// а не колись потім.
+function queueOpenedLocs(pairs){
+  (pairs||[]).forEach(x=>qM(()=>mHTML(
+    M_CLOSE_BTN+_locOpenedContentHTML(x.loc,x.wall)+
+    _locOpenedBtnsHTML(x.wall,'closeModal()'))));
+}
+function celebrateOpenedLocs(opened){queueOpenedLocs(openedWithWalls(opened));}
+
+function celebrateNewWalls(noSave){
+  checkWallUnlocks(noSave).forEach(w=>qM(()=>mHTML(
     M_CLOSE_BTN+
     '<div class="wall-hero" style="background-image:url(\''+w.file+'.webp\')"></div>'+
     '<div class="m-title" style="text-align:center">Нові обої!</div>'+
@@ -2562,7 +2630,13 @@ function enterGame(){
     pushPublic();
     loadFriends(true);
   }
-  checkUnlocks();
+  // Результат checkUnlocks() тут раніше просто викидався: локація відкривалась
+  // МОВЧКИ, а її обої лишались непоказаними — і вилітали потім під випадкову
+  // дію. Тепер показуємо на вході, а celebrateNewWalls() підбирає хвіст
+  // (наприклад, обої за ачівку, зароблені на іншому пристрої): усе, що
+  // залишилось невручене, вручається ТУТ, а не колись у грі.
+  celebrateOpenedLocs(checkUnlocks());
+  celebrateNewWalls(true);   // true = не зберігати, див. checkWallUnlocks
   renderMain();
   show('screen-main');
   setMainTab('map');
@@ -2594,7 +2668,11 @@ async function bootSync(){
   if(JSON.stringify(state.players[me.userId]||{})===before)return;
   // Хмара принесла інше (грали з іншого пристрою) — перемальовуємо видиме.
   applyTheme(curTheme());
-  checkUnlocks();
+  // Те саме, що й у enterGame: хмарний сейв міг долити прогрес, якого
+  // вистачає на нову локацію. Вручаємо одразу, а не відкладаємо на випадкову
+  // дію в грі.
+  celebrateOpenedLocs(checkUnlocks());
+  celebrateNewWalls(true);   // true = не зберігати, див. checkWallUnlocks
   renderMain();
   setMainTab(_mainTab||'map');
 }
@@ -4022,9 +4100,14 @@ function doCatch(){
   renderRes();renderDex();renderActions();renderMap();
   const opened=checkUnlocks();
   if(opened.length)renderMap();
+  // Обої позначаємо ДО збереження, щоб вони поїхали в хмару разом із самим
+  // відкриттям, а не окремим рейсом із власною міткою часу.
+  const openedPairs=openedWithWalls(opened);
   saveToCloud(cur);
   qM(()=>mImg(img(stage.pid),'Спіймано '+stage.name+'!','Тепер у твоїй колекції.',[{l:'Чудово!',ok:true,cb:closeModal}]));
-  opened.forEach(u=>qM(()=>mEmoji('🎉','Відкрито!',`${u.emoji} ${u.name} тепер доступна!`,[{l:'Чудово!',ok:true,cb:closeModal}])));
+  // Спершу локація (разом зі своїми обоями), і лише потім ачівки: відкриття
+  // локації — головна новина, ачівка поряд з нею дрібніша.
+  queueOpenedLocs(openedPairs);
   celebrateNewAchievements(d,beforeAch);
 }
 
@@ -4088,6 +4171,7 @@ function buyChainStage(chainId,idx){
   renderRes();renderDex();renderActions();renderMap();
   const opened=checkUnlocks();
   if(opened.length)renderMap();
+  const openedPairs=openedWithWalls(opened);   // до збереження — див. openedWithWalls
   saveToCloud(cur);
   const newAch=newlyCompletedAchievements(d,beforeAch);
   // Stay inside the same modal box throughout — swap content in place (bought ->
@@ -4097,7 +4181,9 @@ function buyChainStage(chainId,idx){
   // this same queue (not qM) so they never fight the shop over the modal box.
   _shopFlowQueue=[
     {type:'bought',pid:chain.stages[idx].pid,name:chain.stages[idx].name},
-    ...opened.map(u=>({type:'unlocked',emoji:u.emoji,name:u.name})),
+    // Локація вручається разом зі своїми обоями й ПЕРЕД ачівками — раніше
+    // цей шлях не показував обої взагалі, і вони вилітали колись потім.
+    ...openedPairs.map(x=>({type:'unlocked',loc:x.loc,wall:x.wall})),
     ...newAch.map(a=>({type:'achievement',achievement:a})),
   ];
   _shopFlowNext();
@@ -4109,7 +4195,8 @@ function _shopFlowNext(){
     if(item.type==='bought'){
       box.innerHTML=`${M_CLOSE_BTN}<img class="m-img" src="${img(item.pid)}" onerror="this.style.display='none'"><div class="m-title">Куплено!</div><div class="m-desc" style="text-align:center">${item.name} тепер у твоїй колекції.</div><div class="m-btns"><button class="btn-ok" onclick="_shopFlowNext()">Чудово!</button></div>`;
     } else if(item.type==='unlocked'){
-      box.innerHTML=`${M_CLOSE_BTN}<div class="m-emoji">🎉</div><div class="m-title">Відкрито!</div><div class="m-desc" style="text-align:center">${item.emoji} ${item.name} тепер доступна!</div><div class="m-btns"><button class="btn-ok" onclick="_shopFlowNext()">Чудово!</button></div>`;
+      box.innerHTML=M_CLOSE_BTN+_locOpenedContentHTML(item.loc,item.wall)+
+        _locOpenedBtnsHTML(item.wall,'_shopFlowNext()');
     } else {
       box.innerHTML=`${M_CLOSE_BTN}${_achievementCelebrationContentHTML(item.achievement)}<div class="m-btns" style="margin-top:12px"><button class="btn-ok" onclick="_shopFlowNext()">Чудово!</button></div>`;
     }
@@ -4266,7 +4353,7 @@ function openProfileSettings(){
 function openAbout(){
   const html=`${M_CLOSE_BTN}<div class="m-title">Про проєкт</div>
     <div style="font-size:12px;line-height:1.55;color:var(--txt-2);margin-top:10px;text-align:justify;hyphens:auto">
-      <p style="margin-bottom:10px"><b style="color:var(--txt-hi)">Читальний Світ</b> — безкоштовний некомерційний фанатський проєкт, зроблений для власних дітей, щоб більше читали. Не продається, не містить реклами і не приймає донатів.</p>
+      <p style="margin-bottom:10px"><b style="color:var(--txt-hi)">Читальний Світ</b> — безкоштовний некомерційний фанатський проєкт, зроблений для сімейного користування. Не продається, не містить реклами і не приймає донатів.</p>
       <p style="margin-bottom:10px">Pokémon, назви та зображення персонажів — торгові марки й об'єкти авторського права Nintendo, Creatures Inc. та GAME FREAK inc. Проєкт з ними не пов'язаний, ними не схвалений і не претендує на жодні права. Зображення персонажів завантажуються з відкритого проєкту PokeAPI.</p>
     </div>`;
   // Якщо модалка вже відкрита (нас викликали з налаштувань) — перемальовуємо
