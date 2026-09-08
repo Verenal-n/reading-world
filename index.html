@@ -1863,13 +1863,18 @@ function celebrateNewAchievements(d,beforeSet){
 // одразу й нічого не варта. Виросте масштаб — тіри можна підняти.
 const WALLS=[
   {id:'classic',name:'Класика',          file:'wall_classic'},
+  // Локаційні йдуть ПО МАПІ, а не як додавались у файл: пікер показує
+  // відкриті саме в порядку цього масиву, тому «Ніч» за Містечко (перша
+  // локація в грі) мусить стояти першою. Дописуєш обої за нову локацію —
+  // встав їх на місце локації в LOCS, а не в кінець. Перевіряє wall-test,
+  // секція 21.
+  {id:'night',  name:'Ніч',              file:'wall_night',   loc:'pallet'},
   {id:'elven',  name:'Ельфійська',       file:'wall_elven',   loc:'forest'},
   {id:'ruins',  name:'Руїни',            file:'wall_ruins',   loc:'glade'},
   {id:'air',    name:'Повітря',          file:'wall_air',     loc:'butterfly'},
   {id:'crystal',name:'Кристали',         file:'wall_crystal', loc:'caves'},
   {id:'water',  name:'Підводна',         file:'wall_water',   loc:'shore'},
   {id:'cyber',  name:'Кіберпанк',        file:'wall_cyber',   loc:'map2'},
-  {id:'night',  name:'Ніч',              file:'wall_night',   loc:'pallet'},
   {id:'mush',   name:'Гриби',            file:'wall_mush',    ach:'quests',     tier:2, unit:'квестів'},
   {id:'fire',   name:'Вогняний світ',    file:'wall_fire',    ach:'monthBooks', tier:1, unit:'книг за місяць'},
   {id:'ice',    name:'Лід',              file:'wall_ice',     ach:'coinsSpent', tier:3, unit:'монет'},
