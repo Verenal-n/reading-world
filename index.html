@@ -593,6 +593,16 @@ select option{background:var(--panel);color:var(--txt-hi);}
 .ach-toast.show{opacity:1;pointer-events:auto;}
 .ach-toast small{display:block;font-size:11px;font-weight:600;color:var(--gold);margin-top:3px;}
 .ach-toast .att-go{display:block;font-size:10px;font-weight:600;color:var(--txt-4);margin-top:4px;}
+/* Поле відгуку. resize:vertical — щоб можна було розтягнути, але не вбік:
+   горизонтальне розтягування рве верстку модалки. */
+.bd-rev{min-height:92px;max-height:240px;resize:vertical;line-height:1.5;font-family:inherit;}
+.bd-rev-count{font-size:10.5px;color:var(--txt-4);font-variant-numeric:tabular-nums;}
+.bd-rev-count.full{color:var(--gold);}
+/* pre-wrap — щоб абзаци, які людина написала, лишились абзацами.
+   overflow-wrap — щоб довге слово без пробілів не розсунуло модалку. */
+.bd-rev-read{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12.5px;line-height:1.6;
+  color:var(--txt-2);background:rgba(var(--ink),.05);border:1px solid rgba(var(--ink),.08);
+  border-radius:9px;padding:10px 12px;margin-bottom:12px;text-align:left;}
 
 ::-webkit-scrollbar{width:4px;}
 ::-webkit-scrollbar-thumb{background:rgba(var(--ink),.15);border-radius:2px;}
@@ -2696,7 +2706,7 @@ async function loadStateFor(userId,tryCloud,pre){
     return;
   }
   state.players[userId]=Object.assign({},state.players[userId],r.state);
-  mergeCovers(state.players[userId],r.covers);
+  mergeCovers(state.players[userId],r.covers,r.revs);
   // Обої: хмара могла принести і свій d.wall, і свій список показаних.
   // enterGame() працював з локальною копією, тому застосовуємо ще раз.
   const _wd=state.players[userId];
@@ -5356,6 +5366,18 @@ function openBookDetail(i,playerId){
       <option value="">Оберіть жанр</option>
       ${GENRES.map(g=>`<option value="${g}" ${book.genre===g?'selected':''}>${g}${qGenreMark(g)}</option>`).join('')}
     </select>`:(book.genre?`<div style="text-align:center;font-size:12px;color:var(--txt);margin-bottom:12px">${book.genre}</div>`:'');
+  // Відгук приватний: друзям не віддається, у buildPublicSummary не входить.
+  // Текст НЕ йде в onclick і не підставляється в атрибут — лише в тіло поля,
+  // бо апостроф ми тут навмисно лишили (див. cleanReview).
+  const revNow=bookRev(book);
+  const revHtml=editable
+    ?`<div class="flbl" style="opacity:.6;display:flex;justify-content:space-between;align-items:baseline">
+        <span>Мої думки</span>
+        <span id="bd-rev-count" class="bd-rev-count">${revLen(revNow)}/${REV_MAX}</span>
+      </div>
+      <textarea id="bd-rev" class="finput bd-rev" rows="4"
+        placeholder="Що сподобалось? Що ні? Кому порадиш?" oninput="bdRevInput(this)"></textarea>`
+    :(revNow?`<div class="flbl" style="opacity:.6">Думки</div><div class="bd-rev-read"></div>`:'');
   const footer=editable?`<button class="btn-ok" style="width:100%;margin-top:4px;padding:12px;font-size:13px" onclick="saveBookDetail(${i})">Зберегти</button>
     <button class="bd-delete-btn" onclick="confirmDeleteBook(${i})" title="Видалити книгу">🗑️</button>`:'';
   mHTML(`${M_CLOSE_BTN}
@@ -5372,7 +5394,14 @@ function openBookDetail(i,playerId){
     <div style="text-align:center;font-size:11px;color:var(--txt-3);margin-bottom:12px">${book.pages} стор. · ${esc(uaDate(book))}</div>
     ${formatHtml}
     ${genreHtml}
+    ${revHtml}
     ${footer}`);
+  // Текст кладемо ПІСЛЯ вставки розмітки і тільки як значення/текст, а не в
+  // шаблон: так апостроф, лапки й переноси рядків не можуть нічого зламати.
+  const rv=document.getElementById('bd-rev');
+  if(rv)rv.value=revNow;
+  const rr=document.querySelector('.bd-rev-read');
+  if(rr)rr.textContent=revNow;
 }
 function onBdStarClick(event,i){
   _bdRating=i-(_starClickIsHalf(event)?0.5:0);
@@ -5393,11 +5422,34 @@ function confirmBdCoverEdit(){
   document.getElementById('bd-cover-editform').style.display='none';
 }
 
+// Друкувати далі за межу не даємо: ріжемо на місці й лишаємо курсор там, де
+// він був. maxlength тут не годиться — він рахує одиниці UTF-16, тобто емодзі
+// з'їдало б дві «літери», а ще міг би розрізати його навпіл.
+function bdRevInput(el){
+  const g=_segs(el.value);
+  if(g.length>REV_MAX){
+    const at=el.selectionStart;
+    el.value=g.slice(0,REV_MAX).join('');
+    const pos=Math.min(at,el.value.length);
+    try{el.setSelectionRange(pos,pos);}catch(e){}
+  }
+  const c=document.getElementById('bd-rev-count');
+  if(c){
+    const n=_segs(el.value).length;
+    c.textContent=n+'/'+REV_MAX;
+    c.classList.toggle('full',n>=REV_MAX);
+  }
+}
 function saveBookDetail(i){
   const d=pd();const book=(d.books||[])[i];if(!book)return;
   const beforeAch=achSnapshot(d);
   const url=(document.getElementById('bd-cover-input').value||'').trim();
   const genre=document.getElementById('bd-genre').value||'';
+  const revEl=document.getElementById('bd-rev');
+  if(revEl){
+    const t=cleanReview(revEl.value);
+    if(t)book.rev=t;else delete book.rev;
+  }
   book.coverUrl=cleanCoverUrl(url);
   if(url&&!book.coverUrl){showToast('Обкладинка: потрібне звичайне https-посилання');return;}
   if(genre)book.genre=genre;else delete book.genre;
@@ -5517,12 +5569,47 @@ function showLocToast(name,desc){
 // обкладинки мусять бути на місці.
 // Ключ — назва+автор у нормалізованому вигляді (той самий reaxKey), бо
 // індекс книги зсувається при видаленні, а id у книжок немає.
+// ═══════════ ВІДГУК ПРО КНИГУ ═══════════
+// Приватний: друзям не віддається ніколи, у buildPublicSummary не входить.
+//
+// Межа рахується ГРАФЕМАМИ, а не .length. Один і той самий відгук із емодзі
+// має .length 62, кодових точок 55, а графем 49 — якби рахували перше, емодзі
+// з'їдали б місце вдвічі швидше, і людина не зрозуміла б чому.
+const REV_MAX=1000;
+function _segs(s){
+  s=String(s||'');
+  try{
+    if(typeof Intl!=='undefined'&&Intl.Segmenter)
+      return Array.from(new Intl.Segmenter('uk',{granularity:'grapheme'}).segment(s),x=>x.segment);
+  }catch(e){}
+  return Array.from(s);            // запасний шлях: кодові точки, теж не рве емодзі
+}
+function revLen(s){return _segs(s).length;}
+// Різати .slice() НЕ МОЖНА: воно ріже по одиницях UTF-16 і розриває емодзі
+// навпіл, а самотній сурогат мовчки переживає JSON і лягає в таблицю биттям.
+function revCut(s,n){const g=_segs(s);return g.length<=n?String(s||''):g.slice(0,n).join('');}
+// Своя чистка, не cleanBookText: той ріже апостроф (бо назви йдуть в onclick),
+// а «П'ять зірок» без апострофа — це каліцтво. Тому апостроф і переноси рядків
+// лишаємо, а ЦІНА цього — відгук НІКОЛИ не можна вставляти в onclick чи в
+// атрибут, лише текстом у тіло.
+function cleanReview(s){
+  return revCut(String(s||'').replace(/[<>\\]/g,'').replace(/\r\n?/g,'\n').replace(/\n{3,}/g,'\n\n'),REV_MAX).trim();
+}
+function bookRev(b){return (b&&typeof b.rev==='string')?b.rev:'';}
+
 function splitCovers(d){
-  const covers={};
+  const covers={},revs={};
   const books=(d.books||[]).map(b=>{
-    if(!b||!b.coverUrl)return b;
+    let c=b;
+    // Відгуки їдуть окремою ділянкою стовпців — інакше вони з'їдали б місце
+    // під КНИГИ: з 3162 книг до стелі лишилося б 470.
+    if(b&&b.rev){
+      revs[reaxKey(b.title,b.author)]=b.rev;
+      c=Object.assign({},b);delete c.rev;
+    }
+    if(!b||!b.coverUrl)return c;
     covers[reaxKey(b.title,b.author)]=b.coverUrl;
-    const c=Object.assign({},b);
+    c=Object.assign({},c);
     delete c.coverUrl;
     return c;
   });
@@ -5533,15 +5620,21 @@ function splitCovers(d){
     delete c.their.c;
     return c;
   });
-  return{slim:Object.assign({},d,{books:books,questsDone:qd}),covers:covers};
+  return{slim:Object.assign({},d,{books:books,questsDone:qd}),covers:covers,revs:revs};
 }
-function mergeCovers(d,raw){
-  let covers={};
+function mergeCovers(d,raw,rawRevs){
+  let covers={},revs={};
   try{covers=raw?(typeof raw==='string'?JSON.parse(raw):raw):{};}catch(e){covers={};}
+  // Старий бекенд поля revs не знає — тоді просто нема чого зливати.
+  try{revs=rawRevs?(typeof rawRevs==='string'?JSON.parse(rawRevs):rawRevs):{};}catch(e){revs={};}
   (d&&d.books||[]).forEach(b=>{
     if(b&&!b.coverUrl){
       const u=covers[reaxKey(b.title,b.author)];
       if(u)b.coverUrl=u;
+    }
+    if(b&&!b.rev){
+      const t=revs[reaxKey(b.title,b.author)];
+      if(t)b.rev=t;
     }
   });
   (d&&d.questsDone||[]).forEach(r=>{
@@ -5597,16 +5690,28 @@ async function saveToCloud(pid){
   _saveBusy[pid]=run;
   return run;
 }
+// Останні відгуки, які реально доїхали на сервер — по гравцю. Поки вони не
+// змінились, поле `revs` у рейс не кладемо ВЗАГАЛІ: бекенд тоді переносить
+// збережене як є. Через це звичайне збереження (спіймав, додав книгу) важить
+// стільки ж, скільки важило, хоч би скільки було написано відгуків.
+const _revsSent={};
 async function _pushSave(pid){
   showSaveStatus('saving');
   const split=splitCovers(state.players[pid]);
+  const revsStr=JSON.stringify(split.revs);
+  const revsChanged=_revsSent[pid]!==revsStr;
   // POST (not GET+JSONP) — a big library of books would otherwise blow past the
   // URL-length limit on a GET request and silently fail to save anything at all.
-  const r=await _api({action:'save',userId:me.userId,token:me.token,
-                      state:JSON.stringify(split.slim),
-                      covers:JSON.stringify(split.covers),
-                      pub:JSON.stringify(buildPublicSummary(state.players[pid]))});
+  const payload={action:'save',userId:me.userId,token:me.token,
+                 state:JSON.stringify(split.slim),
+                 covers:JSON.stringify(split.covers),
+                 pub:JSON.stringify(buildPublicSummary(state.players[pid]))};
+  if(revsChanged)payload.revs=revsStr;
+  const r=await _api(payload);
   if(r&&r.ok){
+    // Позначаємо доїханим ЛИШЕ після успіху — інакше провалений рейс назавжди
+    // переконав би нас, що відгуки на сервері вже є.
+    if(revsChanged)_revsSent[pid]=revsStr;
     showSaveStatus('saved');
     // Зліпок для друзів не влазив у стовпчик: друзі бачили б застиглі числа.
     if(r.pubSkipped&&!_pubWarned){_pubWarned=1;showToast('Дані для друзів завеликі — напиши мені');}
