@@ -1253,6 +1253,15 @@ function bookLang(b){
   if(b&&b.lang&&LANG_META[b.lang])return b.lang;
   return detectBookLanguage(b&&b.title);
 }
+// У формі додавання назви на момент відкриття ще немає, тому перший варіант
+// підписуємо на ходу — поки поле порожнє, називати мову нема з чого.
+function updSpLangAuto(){
+  const sel=document.getElementById('sp-lang');if(!sel||!sel.options.length)return;
+  const t=(document.getElementById('sp-book')||{}).value||'';
+  sel.options[0].textContent=t.trim()
+    ? LANG_META[detectBookLanguage(t)].label+' (визначено автоматично)'
+    : 'Визначено автоматично';
+}
 function langBreakdown(books){
   const counts={};
   books.forEach(b=>{const l=bookLang(b);counts[l]=(counts[l]||0)+1;});
@@ -1381,7 +1390,7 @@ function setMainTab(tab){
     document.getElementById('tab-'+t).style.display=t===tab?'':'none';
     document.getElementById('bt-'+t).classList.toggle('act',t===tab);
   });
-  if(tab==='library')renderLibraryTab();
+  if(tab==='library'){jnJumpToLatest();renderLibraryTab();}
   else if(tab==='stats'){renderGoalWidget();renderGeneralStatsWidget();renderAchievementsWidget();renderYearWrapWidget();}
   else if(tab==='friends'){
     _frMsg={text:'',bad:false};
@@ -1389,8 +1398,17 @@ function setMainTab(tab){
     renderFriendsTab();markReaxSeen();loadFriends();
   }
 }
+// Стрибок до останньої книги доречний, лише коли вигляд ВІДКРИВАЮТЬ чи
+// перемикають. Раніше він робився на КОЖНЕ перемальовування — і людину, яка
+// зберегла відгук десь посеред довгого шляху, викидало в самий кінець.
+// Те саме робили доїхалі кольори обкладинок і зарахований квест.
+let _jnJump=false;
+function jnJumpToLatest(){_jnJump=true;}
 function renderLibraryTab(){
   const el=document.getElementById('library-fullscreen');if(!el)return;
+  const sc=document.querySelector('.main-content');
+  const keep=sc?sc.scrollTop:0;
+  const jump=_jnJump;_jnJump=false;
   el.innerHTML=_buildLibraryHTML();
   // Кольори з обкладинок добираємо ПІСЛЯ малювання: ті самі файли браузер
   // щойно взяв для <img>, тому запит майже завжди влучає в його кеш. Коли
@@ -1398,7 +1416,8 @@ function renderLibraryTab(){
   const d=pd();if(d)covWarm(d.books||[]);
   // Висота дороги задана явно, тому міряти нічого не треба — але даємо
   // браузеру домалювати, інакше scrollTop приліплюється до старої висоти.
-  if(_libViewMode==='journey'&&_libPath==='date')requestAnimationFrame(_jnScrollToLatest);
+  if(jump&&_libViewMode==='journey'&&_libPath==='date')requestAnimationFrame(_jnScrollToLatest);
+  else if(sc&&keep)requestAnimationFrame(()=>{sc.scrollTop=keep;});
 }
 function renderGoalWidget(){
   const el=document.getElementById('goal-widget');if(!el)return;
@@ -1449,7 +1468,12 @@ function setChartYear(y){_chartYear=y;renderGeneralStatsWidget();}
 function setChartMetric(m){_chartMetric=m;renderGeneralStatsWidget();}
 // Бублик мов і бублик жанрів — той самий малюнок; різняться лише підписи й
 // те, з чого рахується сума. Тому геометрія живе в одному місці.
-function _donutCardHTML(title,breakdown,total,center,emptyText){
+// centerVal/centerLbl — те, чого НЕМАЄ в легенді. Раніше в центрі кожного
+// бублика стояла загальна кількість книг: у двох сусідніх кружках світилось
+// однакове «12», і воно нічого не додавало, бо числа з легенди й так у суму
+// складаються. Тепер там кількість РІЗНИХ — мов, жанрів, форматів: це
+// відповідь на «наскільки різноманітно я читаю», і в кожному бублику вона своя.
+function _donutCardHTML(title,breakdown,total,centerVal,centerLbl,emptyText){
   if(!total){
     return`<div class="stats-chart-card">
       <div class="stats-chart-title">${title}</div>
@@ -1473,16 +1497,20 @@ function _donutCardHTML(title,breakdown,total,center,emptyText){
     <div class="stats-chart-title">${title}</div>
     <div class="lang-donut-row">
       <svg viewBox="0 0 120 120" class="lang-donut-svg">${arcs}
-        <text x="60" y="54" text-anchor="middle" dominant-baseline="central" font-size="24" font-weight="800" style="fill:var(--txt-hi)">${total}</text>
-        <text x="60" y="71" text-anchor="middle" font-size="9" font-weight="600" style="fill:var(--txt-3)">${center}</text>
+        <!-- Число сидить на 51, підпис на 75: при 24px і baseline central
+             цифри діставали до 66, а підпис починався з 63 — вони налазили.
+             Заміряно getBoundingClientRect, а не на око: просвіт має бути > 0. -->
+        <text x="60" y="49" text-anchor="middle" dominant-baseline="central" font-size="23" font-weight="800" style="fill:var(--txt-hi)">${centerVal}</text>
+        <text x="60" y="78" text-anchor="middle" font-size="9" font-weight="600" style="fill:var(--txt-3)">${centerLbl}</text>
       </svg>
       <div class="lang-legend">${legend}</div>
     </div>
   </div>`;
 }
 function renderLangDonutHTML(books){
-  return _donutCardHTML('Топ за мовами',langBreakdown(books),books.length,
-    bookWord(books.length),'Немає книг за цей період');
+  const b=langBreakdown(books);
+  return _donutCardHTML('Топ за мовами',b,books.length,
+    b.length,pluralUA(b.length,'мова','мови','мов'),'Немає книг за цей період');
 }
 function genreBreakdown(books){
   const counts={};
@@ -1499,13 +1527,15 @@ function formatBreakdown(books){
     .sort((a,b)=>b.count-a.count);
 }
 function renderFormatDonutHTML(books){
-  return _donutCardHTML('Як читалось',formatBreakdown(books),books.length,
-    bookWord(books.length),'Немає книг за цей період');
+  const b=formatBreakdown(books);
+  return _donutCardHTML('Як читалось',b,books.length,
+    b.length,pluralUA(b.length,'формат','формати','форматів'),'Немає книг за цей період');
 }
 function renderGenreDonutHTML(books){
   const breakdown=genreBreakdown(books);
   return _donutCardHTML('Топ за жанрами',breakdown,breakdown.reduce((s,g)=>s+g.count,0),
-    'з жанром','Ще не вказано жанр для книг цього періоду');
+    breakdown.length,pluralUA(breakdown.length,'жанр','жанри','жанрів'),
+    'Ще не вказано жанр для книг цього періоду');
 }
 const LOC_COLORS={oak:'#4ade80',pallet:'#38bdf8',forest:'#facc15',glade:'#a78bfa',butterfly:'#f472b6',caves:'#94a3b8',shore:'#fb923c'};
 function renderLocationProgressHTML(d){
@@ -3962,7 +3992,7 @@ function openFriendWrap(id){
       <div class="stats-divider"></div>
       <!-- Не «Улюблене»: у цьому блоці лише три рядки про улюблене, а перші
            два — середня довжина й середня оцінка, тобто зовсім не воно. -->
-      <div class="stats-sub-hdr">Що і як читалось</div>
+      <div class="stats-sub-hdr">Читацький портрет</div>
       <div class="wrap-facts">${facts}</div>
       ${bestMonthCard}
     </div>`,true,'ach-modal');
@@ -4671,7 +4701,7 @@ function _buildPagesHTML(){
         ${_spSectionHdr('data','📖 Дані книги')}
         <div id="sp-section-data" style="display:${_spSectionOpen.data?'':'none'}">
           <div class="flbl">Назва книги</div>
-          <input type="text" id="sp-book" class="finput" placeholder="Гаррі Поттер і філософський камінь">
+          <input type="text" id="sp-book" class="finput" placeholder="Гаррі Поттер і філософський камінь" oninput="updSpLangAuto()">
           <div class="flbl">Автор</div>
           <input type="text" id="sp-author" class="finput" placeholder="Дж. К. Роулінґ">
           <div class="flbl">Кількість сторінок</div>
@@ -4696,6 +4726,11 @@ function _buildPagesHTML(){
           <select id="sp-genre" class="finput">
             <option value="">Оберіть жанр</option>
             ${GENRES.map(g=>`<option value="${g}">${g}${qGenreMark(g)}</option>`).join('')}
+          </select>
+          <div class="flbl">Мова</div>
+          <select id="sp-lang" class="finput">
+            <option value="">Визначено автоматично</option>
+            ${LANG_IDS.map(id=>`<option value="${id}">${LANG_META[id].label}</option>`).join('')}
           </select>
           <div class="flbl">Оцінка</div>
           <div id="add-book-stars" style="margin-bottom:0">${starRatingHTML(_addBookRating,true,'onAddStarClick')}</div>
@@ -5015,7 +5050,7 @@ function _jnGroups(books){
   if(by['—'])keys.push('—');
   return{keys,by};
 }
-function setJnYear(y){_jnYear=y;renderLibraryTab();}
+function setJnYear(y){_jnYear=y;jnJumpToLatest();renderLibraryTab();}
 
 function _buildJourneyHTML(books){
   const{keys,by}=_jnGroups(books);
@@ -5325,9 +5360,9 @@ function openLibrarySettings(){
 // Вигляд бібліотеки запам'ятовується в профілі, як і гама: вибрати
 // «Подорож» і побачити після перезаходу знову полиці — це дратує.
 function _libViewSave(){const d=pd();if(!d)return;d.libView=_libViewMode;d.libSort=_libSortBy;d.libPath=_libPath;saveToCloud(cur);}
-function setLibViewMode(m){_libViewMode=m;_libViewSave();openLibrarySettings();renderLibraryTab();}
-function setLibSortBy(s){_libSortBy=s;_libViewSave();openLibrarySettings();renderLibraryTab();}
-function setLibPath(p){_libPath=p;_jnYear=null;_libViewSave();openLibrarySettings();renderLibraryTab();}
+function setLibViewMode(m){_libViewMode=m;_libViewSave();openLibrarySettings();jnJumpToLatest();renderLibraryTab();}
+function setLibSortBy(s){_libSortBy=s;_libViewSave();openLibrarySettings();jnJumpToLatest();renderLibraryTab();}
+function setLibPath(p){_libPath=p;_jnYear=null;_libViewSave();openLibrarySettings();jnJumpToLatest();renderLibraryTab();}
 function _buildShelvesHTML(books){
   const withIdx=[...books].map((b,i)=>({b,i})).reverse(); // newest first within each shelf
   const groups=_computeShelfGroups(withIdx,_libSortBy);
@@ -5400,7 +5435,7 @@ function openBookDetail(i,playerId){
   const langAuto=detectBookLanguage(book.title);
   const langHtml=editable?`<div class="flbl" style="opacity:.6">Мова</div>
     <select id="bd-lang" class="finput">
-      <option value="">Визначити самій — ${esc(LANG_META[langAuto].label)}</option>
+      <option value="">${esc(LANG_META[langAuto].label)} (визначено автоматично)</option>
       ${LANG_IDS.map(id=>`<option value="${id}" ${book.lang===id?'selected':''}>${esc(LANG_META[id].label)}</option>`).join('')}
     </select>`
     :'';
@@ -5539,7 +5574,7 @@ async function parseGoodreadsLink(){
   if(data.pages)document.getElementById('sp-pages').value=data.pages;
   if(data.coverUrl)document.getElementById('sp-cover').value=data.coverUrl;
   openSpSection('data');
-  updSP();updSpCoverPreview();
+  updSP();updSpCoverPreview();updSpLangAuto();
   showToast('Розпізнано! Перевір поля і натисни «Зарахувати книгу»');
 }
 
@@ -5559,6 +5594,8 @@ function submitPages(){
   const author=(document.getElementById('sp-author').value||'').trim();
   const coverUrl=(document.getElementById('sp-cover').value||'').trim();
   const genre=document.getElementById('sp-genre').value||'';
+  const langSel=document.getElementById('sp-lang');
+  const lang=langSel?langSel.value:'';
   if(!title){openSpSection('data');showFormError('Введи назву книги');return;}
   if(!author){openSpSection('data');showFormError('Введи автора');return;}
   if(!pages||pages<1){openSpSection('data');showFormError('Введи кількість сторінок');return;}
@@ -5572,7 +5609,9 @@ function submitPages(){
   const book={title:cleanBookText(title),author:cleanBookText(author),pages,ts:Date.now(),coverUrl:cleanCoverUrl(coverUrl),coinsEarned:coins,format:_addBookFormat};
   if(_addBookRating)book.rating=_addBookRating;
   if(genre)book.genre=genre;
+  if(lang&&LANG_META[lang])book.lang=lang;
   d.books.push(book);
+  jnJumpToLatest();   // нова книга — остання на шляху, до неї й ведемо
   renderRes();renderActions();renderLibraryTab();renderAchievementsWidget();renderGeneralStatsWidget();closeSidePanel();saveToCloud(cur);
   questsSettle(true);   // жанр збігся з квестом — зарахується сам
   const preview=_renderBookPreviewHTML(book);
