@@ -6,6 +6,13 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Читальний Світ</title>
 <meta name="apple-mobile-web-app-title" content="Читальний Світ">
+<!-- Іконки ріже tests/build-icon.js з reference/icon/icon-src.jpg. Кути в
+     png прозорі, тому монета не тягне за собою білий квадрат на темній
+     вкладці. apple-touch — навпаки, з тлом: iOS підкладає під прозоре чорне. -->
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#16213e">
 <style>
 /* ═══════════ ТЕМИ ═══════════
    Кольори живуть ТІЛЬКИ тут. Решта CSS і всі inline-стилі в JS беруть їх
@@ -1203,33 +1210,52 @@ const GENRE_COLORS={
 };
 const LANG_META={
   uk:{label:'Українська',color:'#60a5fa'},
-  ru:{label:'Оркська',color:'#4d7c3a'},
   en:{label:'English',color:'#f87171'},
-  ro:{label:'Румунська',color:'#c084fc'},
-  pl:{label:'Польська',color:'#fb923c'},
-  de:{label:'Німецька',color:'#facc15'},
-  fr:{label:'Французька',color:'#22d3ee'},
-  es:{label:'Іспанська',color:'#a3e635'},
+  ru:{label:'Оркська',color:'#4d7c3a'},
+  // Мову підписуємо нею самою — як English. Виняток один: «Оркська», і він
+  // не про мову.
+  ro:{label:'Română',color:'#c084fc'},
+  pt:{label:'Português',color:'#34d399'},
+  es:{label:'Español',color:'#a3e635'},
+  de:{label:'Deutsch',color:'#facc15'},
 };
+const LANG_IDS=Object.keys(LANG_META);
+
+// Визначаємо ГРУБО — по літерах, яких в іншій мові немає. Точніше з самої
+// назви й не вийде: «Чайка», «Олеся», «Обломов» не мають жодної ознаки, якої
+// не буває в українській, а евристика «є и, немає і» ламала цілком українські
+// «Тигролови» й «Вершники». Тому тонкощі не вгадуємо, а даємо виправити
+// руками в картці книги (b.lang). Детектор — лише перше припущення.
+//
+// Асиметрія навмисна: якщо ознак немає, кажемо «українська». Назвати
+// українську книжку «Оркською» — помилка значно гірша, ніж не впізнати
+// російську.
 function detectBookLanguage(title){
   title=title||'';
   if(/[Ѐ-ӿ]/.test(title)){
     if(/[іїєґІЇЄҐ]/.test(title))return'uk';
-    if(/[ыэъЫЭЪ]/.test(title))return'ru';
-    if(/(^|\s)[иИ](\s|$)/.test(title))return'ru'; // standalone "и" = Russian "and"
-    if(/(^|\s)[йЙ](\s|$)/.test(title))return'uk'; // standalone "й" = Ukrainian "and"
+    if(/[ыэъёЫЭЪЁ]/.test(title))return'ru';
+    if(/(^|\s)[иИ](\s|$)/.test(title))return'ru';   // окреме «и» — рос. сполучник
     return'uk';
   }
-  if(/[ăâîșțşţĂÂÎȘȚŞŢ]/.test(title))return'ro';
-  if(/[ąćęłńśżźĄĆĘŁŃŚŻŹ]/.test(title))return'pl';
+  // Латиниця — теж грубо, лише по літерах, яких в інших мовах списку немає.
+  // «â» навмисно НЕ ознака румунської: воно є і в португальській (câmara).
+  // Спільні наголоси (á é í ó ú) не розрізняють іспанську з португальською,
+  // тому такі книжки лишаються English — і виправляються руками.
+  if(/[ăîșțşţĂÎȘȚŞŢ]/.test(title))return'ro';
   if(/[äöüßÄÖÜ]/.test(title))return'de';
-  if(/[àâçéèêëîïôùûÿœÀÂÇÉÈÊË]/.test(title))return'fr';
-  if(/[áíñóúü¿¡ÁÍÑÓÚÜ]/.test(title))return'es';
+  if(/[ãõÃÕ]/.test(title))return'pt';
+  if(/[ñ¿¡Ñ]/.test(title))return'es';
   return'en';
+}
+// Мова книги: спершу те, що людина обрала руками, і лише потім здогад.
+function bookLang(b){
+  if(b&&b.lang&&LANG_META[b.lang])return b.lang;
+  return detectBookLanguage(b&&b.title);
 }
 function langBreakdown(books){
   const counts={};
-  books.forEach(b=>{const l=detectBookLanguage(b.title);counts[l]=(counts[l]||0)+1;});
+  books.forEach(b=>{const l=bookLang(b);counts[l]=(counts[l]||0)+1;});
   return Object.entries(counts).filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1])
     .map(([lang,count])=>({lang,count,...LANG_META[lang]}));
 }
@@ -3934,7 +3960,9 @@ function openFriendWrap(id){
         ${card(w.top,'Найвища оцінка',w.top&&w.top.rating?'★ '+w.top.rating:'')}
       </div>
       <div class="stats-divider"></div>
-      <div class="stats-sub-hdr">Улюблене</div>
+      <!-- Не «Улюблене»: у цьому блоці лише три рядки про улюблене, а перші
+           два — середня довжина й середня оцінка, тобто зовсім не воно. -->
+      <div class="stats-sub-hdr">Що і як читалось</div>
       <div class="wrap-facts">${facts}</div>
       ${bestMonthCard}
     </div>`,true,'ach-modal');
@@ -5366,6 +5394,17 @@ function openBookDetail(i,playerId){
       <option value="">Оберіть жанр</option>
       ${GENRES.map(g=>`<option value="${g}" ${book.genre===g?'selected':''}>${g}${qGenreMark(g)}</option>`).join('')}
     </select>`:(book.genre?`<div style="text-align:center;font-size:12px;color:var(--txt);margin-bottom:12px">${book.genre}</div>`:'');
+  // Мову даємо виправити руками: детектор дивиться лише на грубі літери й на
+  // «Чайці» чи «Обломові» безсилий. Порожнє значення = «як визначила гра»,
+  // і тоді в дужках показуємо, що саме вона визначила.
+  const langAuto=detectBookLanguage(book.title);
+  const langHtml=editable?`<div class="flbl" style="opacity:.6">Мова</div>
+    <select id="bd-lang" class="finput">
+      <option value="">Визначити самій — ${esc(LANG_META[langAuto].label)}</option>
+      ${LANG_IDS.map(id=>`<option value="${id}" ${book.lang===id?'selected':''}>${esc(LANG_META[id].label)}</option>`).join('')}
+    </select>`
+    :'';
+
   // Відгук приватний: друзям не віддається, у buildPublicSummary не входить.
   // Текст НЕ йде в onclick і не підставляється в атрибут — лише в тіло поля,
   // бо апостроф ми тут навмисно лишили (див. cleanReview).
@@ -5375,8 +5414,7 @@ function openBookDetail(i,playerId){
         <span>Мої думки</span>
         <span id="bd-rev-count" class="bd-rev-count">${revLen(revNow)}/${REV_MAX}</span>
       </div>
-      <textarea id="bd-rev" class="finput bd-rev" rows="4"
-        placeholder="Що сподобалось? Що ні? Кому порадиш?" oninput="bdRevInput(this)"></textarea>`
+      <textarea id="bd-rev" class="finput bd-rev" rows="4" oninput="bdRevInput(this)"></textarea>`
     :(revNow?`<div class="flbl" style="opacity:.6">Думки</div><div class="bd-rev-read"></div>`:'');
   const footer=editable?`<button class="btn-ok" style="width:100%;margin-top:4px;padding:12px;font-size:13px" onclick="saveBookDetail(${i})">Зберегти</button>
     <button class="bd-delete-btn" onclick="confirmDeleteBook(${i})" title="Видалити книгу">🗑️</button>`:'';
@@ -5394,6 +5432,7 @@ function openBookDetail(i,playerId){
     <div style="text-align:center;font-size:11px;color:var(--txt-3);margin-bottom:12px">${book.pages} стор. · ${esc(uaDate(book))}</div>
     ${formatHtml}
     ${genreHtml}
+    ${langHtml}
     ${revHtml}
     ${footer}`);
   // Текст кладемо ПІСЛЯ вставки розмітки і тільки як значення/текст, а не в
@@ -5445,6 +5484,8 @@ function saveBookDetail(i){
   const beforeAch=achSnapshot(d);
   const url=(document.getElementById('bd-cover-input').value||'').trim();
   const genre=document.getElementById('bd-genre').value||'';
+  const langEl=document.getElementById('bd-lang');
+  if(langEl){const v=langEl.value;if(v&&LANG_META[v])book.lang=v;else delete book.lang;}
   const revEl=document.getElementById('bd-rev');
   if(revEl){
     const t=cleanReview(revEl.value);
