@@ -4307,17 +4307,21 @@ function chainKeyLoc(chainId){
 // на кілька десятків позицій, у якому не видно ні де ти, ні що поруч.
 // Стан згорнутості живе поза функцією, бо після кожної покупки
 // _shopFlowNext() перемальовує вміст модалки заново.
+// Акордеон: відкрита завжди РІВНО ОДНА локація. Так висота вмісту майже не
+// гуляє (усі заголовки плюс одна група), і немає стану «все згорнуто», у
+// якому коробка фіксованої висоти стояла б напівпорожня. Тап по вже
+// відкритій нічого не робить — закривати нема куди, це не список, а вибір.
 let _shopOpenLoc=null;
 function toggleShopLoc(locId){
-  if(!_shopOpenLoc)_shopOpenLoc={};
-  _shopOpenLoc[locId]=!_shopOpenLoc[locId];
+  if(_shopOpenLoc===locId)return;
+  _shopOpenLoc=locId;
   openShop();
 }
 function _buildShopHTML(){
   const d=pd();
   // За замовчуванням розгорнута ТА локація, де гравець стоїть: по неї він
   // сюди найчастіше й приходить.
-  if(!_shopOpenLoc){_shopOpenLoc={};_shopOpenLoc[d.location]=true;}
+  if(!_shopOpenLoc)_shopOpenLoc=d.location;
   const isKey=(chain,idx)=>{
     const k=chainKeyLoc(chain.id);
     return !!(k&&idx===k.unlockReq.stageIdx);
@@ -4338,6 +4342,9 @@ function _buildShopHTML(){
     });
     return{locId,loc:LOCS[locId],rows};
   }).filter(g=>g.rows.length);
+  // Локації, де все вже куплено, у список не потрапляють — тож обрана може
+  // зникнути. Тоді відкриваємо першу, а не лишаємо коробку порожньою.
+  if(groups.length&&!groups.some(g=>g.locId===_shopOpenLoc))_shopOpenLoc=groups[0].locId;
 
   const rowHTML=r=>{
     const keyLoc=chainKeyLoc(r.chain.id);
@@ -4356,7 +4363,7 @@ function _buildShopHTML(){
   };
   // Назву локації в рядку більше не пишемо — вона тепер у заголовку групи.
   const html=groups.map(g=>{
-    const open=!!_shopOpenLoc[g.locId];
+    const open=_shopOpenLoc===g.locId;
     const hasKey=g.rows.some(r=>isKey(r.chain,r.idx));
     const affordable=g.rows.filter(r=>d.coins>=r.price).length;
     const here=g.locId===d.location;
@@ -4379,7 +4386,11 @@ function _buildShopHTML(){
   <!-- Рядок лише тоді, коли є що НЕ по кишені: «30 з 30» — це шум. -->
   <div style="font-size:10px;color:var(--txt-3);margin-bottom:8px">${
     total&&canBuy<total?`по кишені ${canBuy} з ${total}`:''}</div>
-  <div style="max-height:340px;overflow-y:auto;padding-right:10px;margin-right:-10px">${html||'<div style="font-size:12px;color:var(--txt-4);text-align:center;padding:1rem">Немає нічого на продаж — спочатку відкрий локації!</div>'}</div>`;
+  <!-- Висота ФІКСОВАНА, а не max-height: інакше модалка росла й стискалась на
+       кожне згортання групи, і то ривком від центра екрана. Тепер міняється
+       лише вміст усередині, а рамка стоїть.
+       min() — щоб на низькому екрані вона не вилізла за межі. -->
+  <div style="height:min(340px,52vh);overflow-y:auto;padding-right:10px;margin-right:-10px">${html||'<div style="font-size:12px;color:var(--txt-4);text-align:center;padding:1rem">Немає нічого на продаж — спочатку відкрий локації!</div>'}</div>`;
 }
 function openShop(){
   const box=document.querySelector('#mOv .modal-box');
