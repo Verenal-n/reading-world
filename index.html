@@ -1076,17 +1076,20 @@ function sprCached(pid){
   _sprMem[pid]=v;
   return v;
 }
-// Викидає всі закешовані спрайти — місце під сейв важливіше за картинки.
+// Викидає все, що ми кешували заради швидкості — спрайти й кольори з
+// обкладинок. Місце під сейв важливіше: обидва кеші відновлюються самі.
+// Кольори теж, бо інакше аварійний шлях звільняв би не все, що сам і зайняв.
 function sprDrop(){
   const kill=[];
   try{
     for(let i=0;i<localStorage.length;i++){
       const k=localStorage.key(i);
-      if(k&&k.indexOf(SPR_KEY)===0)kill.push(k);
+      if(k&&(k.indexOf(SPR_KEY)===0||k.indexOf(COV_KEY)===0))kill.push(k);
     }
     kill.forEach(k=>localStorage.removeItem(k));
   }catch(e){}
   _sprMem={};_sprQueue=[];
+  _covMem={};_covQueue=[];
   return kill.length;
 }
 // Сейв мусить лягти навіть тоді, коли місця не стало.
@@ -1938,7 +1941,7 @@ function achievementTierInfo(a,d){
 function achievementsTotals(d){
   let unlocked=0,total=0;
   ACHIEVEMENTS.forEach(a=>{const info=achievementTierInfo(a,d);unlocked+=info.unlockedCount;total+=info.totalTiers;});
-  return{unlocked,total};
+  return{unlocked,total,count:ACHIEVEMENTS.length};
 }
 // Snapshot which achievements are FULLY maxed right now — call before and
 // after a mutating action, then diff to find newly-completed ones (works for
@@ -2338,7 +2341,7 @@ function renderAchievementsWidget(){
   el.innerHTML=`<div class="ach-card" onclick="openAchievementsModal()">
     <div class="ach-info">
       <div class="ach-title">Твої нагороди</div>
-      <div class="ach-count">${unlocked} з ${total} нагород відкрито</div>
+      <div class="ach-count">${unlocked} із ${total} рівнів відкрито</div>
       <div class="ach-bar-wrap"><div class="ach-bar-fill" style="width:${pct}%"></div></div>
     </div>
     <div class="ach-arrow">›</div>
@@ -2397,7 +2400,7 @@ function genreRowHTML(a,d){
   </div>`;
 }
 function renderAchievementsGridHTML(d){
-  const{unlocked,total}=achievementsTotals(d);
+  const{unlocked,total,count}=achievementsTotals(d);
   const base=ACHIEVEMENTS.filter(a=>!a.genre);
   const gens=ACHIEVEMENTS.filter(a=>a.genre);
   const body=_achTab==='genre'
@@ -2405,7 +2408,7 @@ function renderAchievementsGridHTML(d){
     :`<div class="ach-grid">${base.map(a=>achBadgeHTML(a,d)).join('')}</div>`;
   return`${M_CLOSE_BTN}<div class="ach-modal-hdr">
       <div class="m-title" style="margin-bottom:2px">🏆 Досягнення</div>
-      <div style="font-size:12px;color:var(--txt-3)">${unlocked} з ${total} рівнів відкрито · обидві вкладки</div>
+      <div style="font-size:12px;color:var(--txt-3)">Відкрито ${unlocked} із ${total} рівнів у ${count} досягненнях</div>
       <div class="goal-tabs" style="margin-top:9px">
         <button class="goal-tab${_achTab==='genre'?'':' act'}" onclick="setAchTab('base')">Базові</button>
         <button class="goal-tab${_achTab==='genre'?' act':''}" onclick="setAchTab('genre')">Жанри</button>
