@@ -594,9 +594,7 @@ select option{background:var(--panel);color:var(--txt-hi);}
 .sh-loc-med{width:26px;height:26px;flex-shrink:0;}
 .sh-loc-name{font-size:12px;font-weight:700;color:var(--txt-hi);flex:1;min-width:0;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.sh-loc-cnt{font-size:10px;color:var(--txt-3);flex-shrink:0;font-variant-numeric:tabular-nums;}
 .sh-loc-chev{font-size:11px;color:var(--txt-3);flex-shrink:0;width:12px;text-align:center;}
-.sh-loc-here{font-size:9px;font-weight:700;color:var(--ok);flex-shrink:0;}
 .sh-loc-key{flex-shrink:0;font-size:11px;}
 /* Товар — з відступом і під тією ж кольоровою смугою, що й заголовок:
    видно, де група починається й де закінчується. */
@@ -4393,15 +4391,14 @@ function _buildShopHTML(){
   const html=groups.map(g=>{
     const open=!!_shopOpenLoc[g.locId];
     const hasKey=g.rows.some(r=>isKey(r.chain,r.idx));
-    const affordable=g.rows.filter(r=>d.coins>=r.price).length;
-    const here=g.locId===d.location;
     const c=LOC_COLORS[g.locId]||'';
+    // Ні «ти тут», ні лічильника «2/3»: у магазині байдуже, де стоїш, а
+    // дріб біля назви читався як загадка, а не як підказка. Скільки всього
+    // по кишені — сказано один раз угорі.
     return`<div class="sh-loc" style="--sh-loc-c:${c}" onclick="toggleShopLoc('${g.locId}')">
       <div class="sh-loc-med">${locIconEl(g.locId,26)}</div>
       <span class="sh-loc-name">${esc(g.loc.name)}</span>
-      ${here?`<span class="sh-loc-here">ти тут</span>`:''}
       ${hasKey?`<span class="sh-loc-key" title="Тут є ключовий покемон">🔑</span>`:''}
-      <span class="sh-loc-cnt">${affordable}/${g.rows.length}</span>
       <span class="sh-loc-chev">${open?'▾':'▸'}</span>
     </div>
     ${open?`<div class="sh-group" style="--sh-loc-c:${c}44">${g.rows.map(rowHTML).join('')}</div>`:''}`;
