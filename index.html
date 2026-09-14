@@ -46,6 +46,10 @@
   --gold:#fbbf24; --gold-solid:#facc15; --gold-hi:#fde68a;
   --ok:#4ade80; --ok-solid:#22c55e;
   --bad:#f87171; --bad-2:#fca5a5; --bad-solid:#ef4444;
+  /* Колір локації в магазині. Тут лише запасне значення: справжній
+     підставляється inline із LOC_COLORS, бо він У КОЖНОЇ локації свій і є
+     даними, а не темою. Оголошений тут, щоб не був «невідомим токеном». */
+  --sh-loc-c:rgba(var(--ink),.3);
   --shelf:#111009; --shelf-lbl:#a08a5c;
   --plank-1:#7a5a32; --plank-2:#5a3e1e; --plank-3:#3e2a10; --plank-edge:#9a7a4a;
   --tip-bg:#fff; --tip-txt:#1e2d4a;
@@ -578,9 +582,15 @@ select option{background:var(--panel);color:var(--txt-hi);}
 /* Магазин по локаціях. Заголовок групи — та сама смуга, що й у решті
    розділів, але з медальйоном локації: так у списку впізнаєш місце з мапи,
    а не читаєш назву. */
-.sh-loc{display:flex;align-items:center;gap:9px;cursor:pointer;padding:9px 0 8px;
-  border-bottom:1px solid rgba(var(--ink),.10);}
-.sh-loc + .sh-loc{margin-top:0;}
+/* Локація — не такий самий рядок, як покемон: своя підкладка, свій колір
+   зліва (той самий, що в бублику прогресу) і трохи більший кегль. Без цього
+   заголовки зливались із товаром. Колір іде inline, бо він У КОЖНОЇ свій —
+   це дані локації, а не тема (див. CLAUDE.md). */
+.sh-loc{display:flex;align-items:center;gap:9px;cursor:pointer;padding:9px 10px 8px;
+  background:rgba(var(--ink),.07);border-radius:9px;margin-top:8px;
+  border-left:3px solid var(--sh-loc-c);}
+.sh-loc:first-child{margin-top:0;}
+.sh-loc:hover{background:rgba(var(--ink),.12);}
 .sh-loc-med{width:26px;height:26px;flex-shrink:0;}
 .sh-loc-name{font-size:12px;font-weight:700;color:var(--txt-hi);flex:1;min-width:0;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -588,8 +598,15 @@ select option{background:var(--panel);color:var(--txt-hi);}
 .sh-loc-chev{font-size:11px;color:var(--txt-3);flex-shrink:0;width:12px;text-align:center;}
 .sh-loc-here{font-size:9px;font-weight:700;color:var(--ok);flex-shrink:0;}
 .sh-loc-key{flex-shrink:0;font-size:11px;}
-.sh-group{padding:2px 0 10px 0;}
+/* Товар — з відступом і під тією ж кольоровою смугою, що й заголовок:
+   видно, де група починається й де закінчується. */
+.sh-group{padding:0 0 2px 13px;margin-left:1px;
+  border-left:2px solid var(--sh-loc-c);}
 .sh-group .shop-row:last-child{border-bottom:none;}
+/* Кнопка «розгорнути/згорнути все» — дрібна, поруч із монетами. */
+.sh-all{font-size:10px;padding:3px 9px;border-radius:7px;background:rgba(var(--ink),.08);
+  border:1px solid rgba(var(--ink),.16);color:var(--txt-2);cursor:pointer;}
+.sh-all:hover{background:rgba(var(--ink),.16);}
 
 /* SIDE PANEL */
 #side-panel{position:fixed;top:0;right:-380px;width:350px;max-width:88vw;height:100vh;height:100dvh;background:var(--panel);border-left:1px solid rgba(var(--acc),.15);z-index:400;transition:right .25s;padding:1rem;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;}
@@ -1552,7 +1569,9 @@ function renderGenreDonutHTML(books){
     breakdown.length,pluralUA(breakdown.length,'жанр','жанри','жанрів'),
     'Ще не вказано жанр для книг цього періоду');
 }
-const LOC_COLORS={oak:'#4ade80',pallet:'#38bdf8',forest:'#facc15',glade:'#a78bfa',butterfly:'#f472b6',caves:'#94a3b8',shore:'#fb923c'};
+// map2 мав ланцюжки, але кольору не мав — у бублику прогресу його сегмент
+// малювався з undefined. Колір узятий із самої локації (stroke у LOCS).
+const LOC_COLORS={oak:'#4ade80',pallet:'#38bdf8',forest:'#facc15',glade:'#a78bfa',butterfly:'#f472b6',caves:'#94a3b8',shore:'#fb923c',map2:'#60a5fa'};
 function renderLocationProgressHTML(d){
   const locs=ALL_KANTO_LOCS.filter(locId=>chainsForLoc(locId).length>0);
   const r=45,cx=60,cy=60,sw=22,circ=2*Math.PI*r;
@@ -4307,21 +4326,30 @@ function chainKeyLoc(chainId){
 // на кілька десятків позицій, у якому не видно ні де ти, ні що поруч.
 // Стан згорнутості живе поза функцією, бо після кожної покупки
 // _shopFlowNext() перемальовує вміст модалки заново.
-// Акордеон: відкрита завжди РІВНО ОДНА локація. Так висота вмісту майже не
-// гуляє (усі заголовки плюс одна група), і немає стану «все згорнуто», у
-// якому коробка фіксованої висоти стояла б напівпорожня. Тап по вже
-// відкритій нічого не робить — закривати нема куди, це не список, а вибір.
+// Групи відкриваються й закриваються вільно, скільки завгодно водночас —
+// акордеон «рівно одна» був зручний мені, а не гравцю. Висота списку при
+// цьому не гуляє, бо вона фіксована, а не по вмісту.
 let _shopOpenLoc=null;
 function toggleShopLoc(locId){
-  if(_shopOpenLoc===locId)return;
-  _shopOpenLoc=locId;
+  if(!_shopOpenLoc)_shopOpenLoc={};
+  _shopOpenLoc[locId]=!_shopOpenLoc[locId];
+  openShop();
+}
+// Розгорнути все / згорнути все. Коли відкрита хоч одна — кнопка згортає;
+// коли всі закриті — розгортає.
+function shopToggleAll(){
+  const d=pd();if(!d)return;
+  const ids=Object.keys(LOCS).filter(id=>(d.unlockedLocs||[]).includes(id));
+  const anyOpen=ids.some(id=>_shopOpenLoc&&_shopOpenLoc[id]);
+  _shopOpenLoc={};
+  if(!anyOpen)ids.forEach(id=>{_shopOpenLoc[id]=true;});
   openShop();
 }
 function _buildShopHTML(){
   const d=pd();
   // За замовчуванням розгорнута ТА локація, де гравець стоїть: по неї він
   // сюди найчастіше й приходить.
-  if(!_shopOpenLoc)_shopOpenLoc=d.location;
+  if(!_shopOpenLoc){_shopOpenLoc={};_shopOpenLoc[d.location]=true;}
   const isKey=(chain,idx)=>{
     const k=chainKeyLoc(chain.id);
     return !!(k&&idx===k.unlockReq.stageIdx);
@@ -4344,7 +4372,7 @@ function _buildShopHTML(){
   }).filter(g=>g.rows.length);
   // Локації, де все вже куплено, у список не потрапляють — тож обрана може
   // зникнути. Тоді відкриваємо першу, а не лишаємо коробку порожньою.
-  if(groups.length&&!groups.some(g=>g.locId===_shopOpenLoc))_shopOpenLoc=groups[0].locId;
+
 
   const rowHTML=r=>{
     const keyLoc=chainKeyLoc(r.chain.id);
@@ -4363,11 +4391,12 @@ function _buildShopHTML(){
   };
   // Назву локації в рядку більше не пишемо — вона тепер у заголовку групи.
   const html=groups.map(g=>{
-    const open=_shopOpenLoc===g.locId;
+    const open=!!_shopOpenLoc[g.locId];
     const hasKey=g.rows.some(r=>isKey(r.chain,r.idx));
     const affordable=g.rows.filter(r=>d.coins>=r.price).length;
     const here=g.locId===d.location;
-    return`<div class="sh-loc" onclick="toggleShopLoc('${g.locId}')">
+    const c=LOC_COLORS[g.locId]||'';
+    return`<div class="sh-loc" style="--sh-loc-c:${c}" onclick="toggleShopLoc('${g.locId}')">
       <div class="sh-loc-med">${locIconEl(g.locId,26)}</div>
       <span class="sh-loc-name">${esc(g.loc.name)}</span>
       ${here?`<span class="sh-loc-here">ти тут</span>`:''}
@@ -4375,7 +4404,7 @@ function _buildShopHTML(){
       <span class="sh-loc-cnt">${affordable}/${g.rows.length}</span>
       <span class="sh-loc-chev">${open?'▾':'▸'}</span>
     </div>
-    ${open?`<div class="sh-group">${g.rows.map(rowHTML).join('')}</div>`:''}`;
+    ${open?`<div class="sh-group" style="--sh-loc-c:${c}44">${g.rows.map(rowHTML).join('')}</div>`:''}`;
   }).join('');
   const total=groups.reduce((s,g)=>s+g.rows.length,0);
   const canBuy=groups.reduce((s,g)=>s+g.rows.filter(r=>d.coins>=r.price).length,0);
@@ -4384,8 +4413,12 @@ function _buildShopHTML(){
     <div style="font-size:14px;font-weight:700;color:var(--gold)">🪙${d.coins}</div>
   </div>
   <!-- Рядок лише тоді, коли є що НЕ по кишені: «30 з 30» — це шум. -->
-  <div style="font-size:10px;color:var(--txt-3);margin-bottom:8px">${
-    total&&canBuy<total?`по кишені ${canBuy} з ${total}`:''}</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;min-height:20px">
+    <span style="font-size:10px;color:var(--txt-3)">${
+      total&&canBuy<total?`по кишені ${canBuy} з ${total}`:''}</span>
+    ${groups.length>1?`<button class="sh-all" onclick="shopToggleAll()">${
+      groups.some(g=>_shopOpenLoc[g.locId])?'Згорнути все':'Розгорнути все'}</button>`:''}
+  </div>
   <!-- Висота ФІКСОВАНА, а не max-height: інакше модалка росла й стискалась на
        кожне згортання групи, і то ривком від центра екрана. Тепер міняється
        лише вміст усередині, а рамка стоїть.
