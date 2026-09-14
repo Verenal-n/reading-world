@@ -4399,8 +4399,7 @@ function _buildShopHTML(){
     const hasKey=g.rows.some(r=>isKey(r.chain,r.idx));
     const c=LOC_COLORS[g.locId]||'';
     // Ні «ти тут», ні лічильника «2/3»: у магазині байдуже, де стоїш, а
-    // дріб біля назви читався як загадка, а не як підказка. Скільки всього
-    // по кишені — сказано один раз угорі.
+    // дріб біля назви читався як загадка, а не як підказка.
     return`<div class="sh-loc" style="--sh-loc-c:${c}" onclick="toggleShopLoc('${g.locId}')">
       <div class="sh-loc-med">${locIconEl(g.locId,26)}</div>
       <span class="sh-loc-name">${esc(g.loc.name)}</span>
@@ -4409,16 +4408,14 @@ function _buildShopHTML(){
     </div>
     ${open?`<div class="sh-group" style="--sh-loc-c:${c}44">${g.rows.map(rowHTML).join('')}</div>`:''}`;
   }).join('');
-  const total=groups.reduce((s,g)=>s+g.rows.length,0);
-  const canBuy=groups.reduce((s,g)=>s+g.rows.filter(r=>d.coins>=r.price).length,0);
   return`${M_CLOSE_BTN}<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;padding-right:26px">
     <div class="m-title" style="margin:0">🛒 Магазин</div>
     <div style="font-size:14px;font-weight:700;color:var(--gold)">🪙${d.coins}</div>
   </div>
-  <!-- Рядок лише тоді, коли є що НЕ по кишені: «30 з 30» — це шум. -->
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;min-height:20px">
-    <span style="font-size:10px;color:var(--txt-3)">${
-      total&&canBuy<total?`по кишені ${canBuy} з ${total}`:''}</span>
+  <!-- Тут стояло «по кишені 16 з 18». Прибрано: у кожному рядку є ціна й
+       неактивна кнопка, коли монет бракує, — дріб згори нічого не додавав.
+       Рядок лишився заради кнопки, тому min-height тримає висоту сталою. -->
+  <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:8px;min-height:20px">
     ${groups.length>1?`<button class="sh-all" onclick="shopToggleAll()">${
       groups.some(g=>_shopOpenLoc[g.locId])?'Згорнути все':'Розгорнути все'}</button>`:''}
   </div>
