@@ -575,6 +575,21 @@ select option{background:var(--panel);color:var(--txt-hi);}
 .sh-btn{font-size:11px;padding:5px 12px;border-radius:8px;background:rgba(var(--ink),.1);border:1px solid rgba(var(--ink),.18);color:var(--txt-hi);cursor:pointer;margin-top:4px;display:block;}
 .sh-btn:disabled{opacity:.3;cursor:not-allowed;}
 .sh-btn:not(:disabled):hover{background:rgba(var(--ink),.2);}
+/* Магазин по локаціях. Заголовок групи — та сама смуга, що й у решті
+   розділів, але з медальйоном локації: так у списку впізнаєш місце з мапи,
+   а не читаєш назву. */
+.sh-loc{display:flex;align-items:center;gap:9px;cursor:pointer;padding:9px 0 8px;
+  border-bottom:1px solid rgba(var(--ink),.10);}
+.sh-loc + .sh-loc{margin-top:0;}
+.sh-loc-med{width:26px;height:26px;flex-shrink:0;}
+.sh-loc-name{font-size:12px;font-weight:700;color:var(--txt-hi);flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sh-loc-cnt{font-size:10px;color:var(--txt-3);flex-shrink:0;font-variant-numeric:tabular-nums;}
+.sh-loc-chev{font-size:11px;color:var(--txt-3);flex-shrink:0;width:12px;text-align:center;}
+.sh-loc-here{font-size:9px;font-weight:700;color:var(--ok);flex-shrink:0;}
+.sh-loc-key{flex-shrink:0;font-size:11px;}
+.sh-group{padding:2px 0 10px 0;}
+.sh-group .shop-row:last-child{border-bottom:none;}
 
 /* SIDE PANEL */
 #side-panel{position:fixed;top:0;right:-380px;width:350px;max-width:88vw;height:100vh;height:100dvh;background:var(--panel);border-left:1px solid rgba(var(--acc),.15);z-index:400;transition:right .25s;padding:1rem;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;}
@@ -4288,22 +4303,43 @@ function chainKeyLoc(chainId){
   return Object.values(LOCS).find(loc=>!d.unlockedLocs.includes(loc.id)&&loc.unlockReq&&loc.unlockReq.type==='keyChain'&&loc.unlockReq.chainId===chainId);
 }
 
+// Магазин згорнутий ПО ЛОКАЦІЯХ: одним рядом усі покемони — це простирадло
+// на кілька десятків позицій, у якому не видно ні де ти, ні що поруч.
+// Стан згорнутості живе поза функцією, бо після кожної покупки
+// _shopFlowNext() перемальовує вміст модалки заново.
+let _shopOpenLoc=null;
+function toggleShopLoc(locId){
+  if(!_shopOpenLoc)_shopOpenLoc={};
+  _shopOpenLoc[locId]=!_shopOpenLoc[locId];
+  openShop();
+}
 function _buildShopHTML(){
   const d=pd();
-  const rows=[];
-  d.unlockedLocs.forEach(locId=>{
+  // За замовчуванням розгорнута ТА локація, де гравець стоїть: по неї він
+  // сюди найчастіше й приходить.
+  if(!_shopOpenLoc){_shopOpenLoc={};_shopOpenLoc[d.location]=true;}
+  const isKey=(chain,idx)=>{
+    const k=chainKeyLoc(chain.id);
+    return !!(k&&idx===k.unlockReq.stageIdx);
+  };
+  // Порядок локацій — як на мапі (порядок оголошення в LOCS), а не як у сейві.
+  const groups=Object.keys(LOCS).filter(id=>d.unlockedLocs.includes(id)).map(locId=>{
+    const rows=[];
     chainsForLoc(locId).forEach(chain=>{
       const idx=nextStageIdx(d,chain);
       if(idx>=chain.stages.length)return;
       rows.push({chain,idx,stage:chain.stages[idx],price:stagePrice(chain,idx)});
     });
-  });
-  rows.sort((a,b)=>{
-    const ak=chainKeyLoc(a.chain.id)&&a.idx===chainKeyLoc(a.chain.id).unlockReq.stageIdx?1:0;
-    const bk=chainKeyLoc(b.chain.id)&&b.idx===chainKeyLoc(b.chain.id).unlockReq.stageIdx?1:0;
-    return bk-ak;
-  });
-  const html=rows.map(r=>{
+    // Усередині локації: спершу ключовий (він відкриває наступне місце),
+    // далі — від дешевшого, щоб видно було, що по кишені прямо зараз.
+    rows.sort((a,b)=>{
+      const k=isKey(b.chain,b.idx)-isKey(a.chain,a.idx);
+      return k||a.price-b.price;
+    });
+    return{locId,loc:LOCS[locId],rows};
+  }).filter(g=>g.rows.length);
+
+  const rowHTML=r=>{
     const keyLoc=chainKeyLoc(r.chain.id);
     let keyNote='';
     if(keyLoc){
@@ -4313,15 +4349,37 @@ function _buildShopHTML(){
     }
     return`<div class="shop-row" ${keyLoc&&r.idx===keyLoc.unlockReq.stageIdx?'style="background:rgba(var(--ok-rgb),.06);border-radius:8px;padding:8px 6px;margin:0 -6px"':''}>
       <img class="sh-emoji" src="${img(r.stage.pid)}" style="width:40px;height:40px;image-rendering:pixelated" onerror="this.style.display='none'">
-      <div class="sh-info"><div class="sh-name">${r.stage.name}</div><div class="sh-desc">${r.chain.stages.length>1?'Стадія '+(r.idx+1)+'/'+r.chain.stages.length:'Локація: '+(LOCS[r.chain.loc]?.name||'')}</div>${keyNote}</div>
+      <div class="sh-info"><div class="sh-name">${r.stage.name}</div><div class="sh-desc">${r.chain.stages.length>1?'Стадія '+(r.idx+1)+'/'+r.chain.stages.length:'Один вид'}</div>${keyNote}</div>
       <div style="text-align:right;flex-shrink:0"><div class="sh-price">🪙${r.price}</div>
       <button class="sh-btn" onclick="buyChainStage('${r.chain.id}',${r.idx})" ${d.coins<r.price?'disabled':''}>Купити</button></div>
     </div>`;
+  };
+  // Назву локації в рядку більше не пишемо — вона тепер у заголовку групи.
+  const html=groups.map(g=>{
+    const open=!!_shopOpenLoc[g.locId];
+    const hasKey=g.rows.some(r=>isKey(r.chain,r.idx));
+    const affordable=g.rows.filter(r=>d.coins>=r.price).length;
+    const here=g.locId===d.location;
+    return`<div class="sh-loc" onclick="toggleShopLoc('${g.locId}')">
+      <div class="sh-loc-med">${locIconEl(g.locId,26)}</div>
+      <span class="sh-loc-name">${esc(g.loc.name)}</span>
+      ${here?`<span class="sh-loc-here">ти тут</span>`:''}
+      ${hasKey?`<span class="sh-loc-key" title="Тут є ключовий покемон">🔑</span>`:''}
+      <span class="sh-loc-cnt">${affordable}/${g.rows.length}</span>
+      <span class="sh-loc-chev">${open?'▾':'▸'}</span>
+    </div>
+    ${open?`<div class="sh-group">${g.rows.map(rowHTML).join('')}</div>`:''}`;
   }).join('');
-  return`${M_CLOSE_BTN}<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-right:26px">
+  const total=groups.reduce((s,g)=>s+g.rows.length,0);
+  const canBuy=groups.reduce((s,g)=>s+g.rows.filter(r=>d.coins>=r.price).length,0);
+  return`${M_CLOSE_BTN}<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;padding-right:26px">
     <div class="m-title" style="margin:0">🛒 Магазин</div>
     <div style="font-size:14px;font-weight:700;color:var(--gold)">🪙${d.coins}</div>
-  </div><div style="max-height:340px;overflow-y:auto;padding-right:10px;margin-right:-10px">${html||'<div style="font-size:12px;color:var(--txt-4);text-align:center;padding:1rem">Немає нічого на продаж — спочатку відкрий локації!</div>'}</div>`;
+  </div>
+  <!-- Рядок лише тоді, коли є що НЕ по кишені: «30 з 30» — це шум. -->
+  <div style="font-size:10px;color:var(--txt-3);margin-bottom:8px">${
+    total&&canBuy<total?`по кишені ${canBuy} з ${total}`:''}</div>
+  <div style="max-height:340px;overflow-y:auto;padding-right:10px;margin-right:-10px">${html||'<div style="font-size:12px;color:var(--txt-4);text-align:center;padding:1rem">Немає нічого на продаж — спочатку відкрий локації!</div>'}</div>`;
 }
 function openShop(){
   const box=document.querySelector('#mOv .modal-box');
