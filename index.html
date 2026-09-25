@@ -217,6 +217,11 @@ html.has-wall .app{
 .fr-last{display:flex;gap:6px;align-items:center;margin-top:6px;padding-top:6px;border-top:1px solid rgba(var(--ink),.07);}
 .fr-last-cover{width:24px;height:34px;border-radius:3px;object-fit:cover;flex-shrink:0;}
 .fr-last-txt{flex:1;min-width:0;font-size:10.5px;color:var(--txt-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* Обкладинка + назва останньої книги: <a>, коли є номер Goodreads, <div> — коли
+   немає. Однаковий вигляд в обох випадках, ❤️ стоїть поряд, а не всередині. */
+.fr-last-link{display:flex;gap:6px;align-items:center;flex:1;min-width:0;color:inherit;text-decoration:none;}
+a.wrap-book-card{color:inherit;text-decoration:none;}
+.gr-mark{color:var(--accent);font-weight:600;margin-left:3px;}
 .fr-btn{background:rgba(var(--acc),.12);border:1px solid rgba(var(--acc),.28);border-radius:14px;color:var(--accent);font-size:10.5px;font-weight:600;padding:6px 10px;cursor:pointer;font-family:inherit;white-space:nowrap;}
 .fr-btn.danger{background:rgba(var(--bad-rgb),.1);border-color:rgba(var(--bad-rgb),.3);color:var(--bad-2);}
 .fr-menu-wrap{position:relative;flex-shrink:0;}
@@ -571,7 +576,12 @@ select option{background:var(--panel);color:var(--txt-hi);}
 
 /* SHOP ROW */
 .shop-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(var(--ink),.06);}
-.sh-emoji{font-size:20px;flex-shrink:0;}
+/* Спрайт 96×96, і добра третина кадру — прозорі поля. Тому картинка більша
+   за своє місце в рядку: від'ємний відступ «з'їдає» поля. По вертикалі він
+   дорівнює padding рядка (8px) — навіть покемон на весь кадр (Онікс,
+   Чарізард) доходить лише до лінії-розділювача й не налазить на сусіда.
+   76px — той самий розмір, що в інших місцях гри. */
+.sh-emoji{width:76px;height:76px;margin:-8px -6px;image-rendering:pixelated;flex-shrink:0;}
 .sh-info{flex:1;}
 .sh-name{font-size:12px;font-weight:600;color:var(--txt-hi);}
 .sh-desc{font-size:10px;color:var(--txt-3);margin-top:1px;}
@@ -3030,6 +3040,25 @@ let friendsData={friends:[],incoming:[],outgoing:[],reax:[]};
 // закриває виклик і далі йде його код. Тому ключі, які потім підставляються
 // в onclick або в індекс масиву, фільтруємо одразу на вході — одне місце на
 // всі майбутні поля, а не оберігання при кожному рендері.
+// ── Goodreads: номер книги, а не адреса ──
+// Зберігаємо лише цифри з /book/show/<цифри>. Адресу для друга збираємо
+// самі — тож у href чужого рядка не буде ніколи, навіть якщо клієнт друга
+// підсуне туди `javascript:` чи лапку.
+function grIdFromUrl(u){
+  const m=/goodreads\.com\/(?:[a-z]{2}\/)?book\/show\/(\d{1,12})(?!\d)/i.exec(String(u||''));
+  return m?m[1]:null;
+}
+function grClean(v){
+  if(v===null||v===undefined)return null;
+  const s=String(v);
+  return /^\d{1,12}$/.test(s)?s:null;
+}
+function grUrl(id){const g=grClean(id);return g?'https://www.goodreads.com/book/show/'+g:null;}
+function _grScrub(b){
+  if(!b||typeof b!=='object')return;
+  const g=grClean(b.gr);
+  if(g)b.gr=g;else delete b.gr;
+}
 function sanitizeFriends(list){
   return(Array.isArray(list)?list:[]).filter(f=>f&&typeof f==='object').map(f=>{
     // id квесту йде в onclick="acceptQuest('…')" — лише те, що ми самі генеруємо.
@@ -3040,6 +3069,8 @@ function sanitizeFriends(list){
     // тільки той id, який у нас справді є: чужого рядка на цьому місці бути
     // не повинно взагалі.
     if(f.loc!==undefined&&!_anyLoc(f.loc))delete f.loc;
+    // Номер Goodreads іде в href — лишаємо тільки цифри, адресу збираємо самі.
+    _grScrub(f.last);
     // рік іде в onclick="setFriendWrapYear(…)", місяць — в індекс масиву назв.
     if(f.wraps&&typeof f.wraps==='object'&&!Array.isArray(f.wraps)){
       const w={};
@@ -3048,6 +3079,7 @@ function sanitizeFriends(list){
         if(!/^[0-9]{4}$/.test(k)||!v||typeof v!=='object')return;
         const bm=v.bestMonth;
         if(bm&&!(+bm.idx>=0&&+bm.idx<=11))delete v.bestMonth;
+        _grScrub(v.shortest);_grScrub(v.longest);_grScrub(v.top);
         w[k]=v;
       });
       f.wraps=w;
@@ -3088,15 +3120,18 @@ function buildPublicSummary(d){
     goal:goal,
     streak:d.currentGoalStreak||0,
     ach:achievementsTotals(d).unlocked,
-    last:last?{title:last.title,author:last.author,cover:last.coverUrl||null,
-               rating:last.rating||null}:null,
+    last:last?_withGr({title:last.title,author:last.author,cover:last.coverUrl||null,
+               rating:last.rating||null},last):null,
     wraps:wraps,
     q:qPublic(d),          // свій бік спільних квестів — другий бік читає це
     ts:Date.now(),
   };
 }
+// Номер Goodreads кладемо лише тоді, коли він є: у старих книг його немає,
+// і `gr:null` на кожній лише роздував би стовпчик.
+function _withGr(o,book){const g=grClean(book&&book.gr);if(g)o.gr=g;return o;}
 function slimWrap(w){
-  const b=x=>x?{title:x.title,pages:x.pages||0,rating:x.rating||null,cover:x.coverUrl||null}:null;
+  const b=x=>x?_withGr({title:x.title,pages:x.pages||0,rating:x.rating||null,cover:x.coverUrl||null},x):null;
   return{
     count:w.count,pages:w.pages,avgPages:w.avgPages,avgRating:w.avgRating,
     shortest:b(w.shortestBook),longest:b(w.longestBook),top:b(w.topRatedBook),
@@ -3863,9 +3898,17 @@ function friendCardHTML(f,opts){
   // краще сказати це словами, ніж малювати «📍 —» і три нулі.
   const fresh=!f.loc&&f.caught===undefined&&f.books===undefined;
   const goal=f.goal?` · 🎯 ${esc(f.goal.done)}/${esc(f.goal.target)}`:'';
+  // Обкладинка й назва ведуть на Goodreads, якщо друг додав книгу через
+  // посилання. ❤️ лишається ПОЗА посиланням — тап по ній не має відкривати
+  // вкладку. Без номера та сама розмітка, але <div>: вигляд однаковий,
+  // просто не тапається.
+  const lastGr=f.last?grUrl(f.last.gr):null;
+  const lastInner=f.last?`${escUrl(f.last.cover)?`<img class="fr-last-cover" src="${escUrl(f.last.cover)}" onerror="this.style.display='none'">`:''}
+      <div class="fr-last-txt">Остання: ${esc(f.last.title)}${lastGr?'<span class="gr-mark">↗</span>':''}${f.last.rating?' · ★'+esc(f.last.rating):''}</div>`:'';
   const last=f.last?`<div class="fr-last">
-      ${escUrl(f.last.cover)?`<img class="fr-last-cover" src="${escUrl(f.last.cover)}" onerror="this.style.display='none'">`:''}
-      <div class="fr-last-txt">Остання: ${esc(f.last.title)}${f.last.rating?' · ★'+esc(f.last.rating):''}</div>
+      ${lastGr
+        ?`<a class="fr-last-link" href="${lastGr}" target="_blank" rel="noopener noreferrer">${lastInner}</a>`
+        :`<div class="fr-last-link">${lastInner}</div>`}
       ${reaxBtnHTML(f)}
     </div>`:'';
   const hasWrap=f.wraps&&Object.keys(f.wraps).length>0;
@@ -3983,14 +4026,23 @@ function openFriendWrap(id){
   const w=f.wraps[y];  // Верстка навмисно та сама, що у власному «Рік у книгах»: ті самі класи
   // .stat-tiles / .wrap-book-row / .wrap-facts / .wrap-month-card, тому
   // розміри, шрифти й секції збігаються з рештою статистики.
-  const card=(b,label,stat)=>b?`<div class="wrap-book-card" style="cursor:default">
+  // Є номер Goodreads — картка стає посиланням на сторінку книги. Немає —
+  // той самий вигляд, але <div> без курсора-руки: тапати нічого.
+  const card=(b,label,stat)=>{
+    if(!b)return'';
+    const gr=grUrl(b.gr);
+    const open=gr
+      ?`<a class="wrap-book-card" href="${gr}" target="_blank" rel="noopener noreferrer">`
+      :`<div class="wrap-book-card" style="cursor:default">`;
+    return`${open}
       ${escUrl(b.cover)?`<img src="${escUrl(b.cover)}" style="width:44px;height:64px;object-fit:cover;border-radius:4px;flex-shrink:0">`
         :`<div style="width:44px;height:64px;background:rgba(var(--ink),.08);border-radius:4px;flex-shrink:0"></div>`}
       <div class="wrap-book-info">
         <div class="wrap-book-lbl">${label}</div>
-        <div class="wrap-book-title">${esc(b.title)}</div>
+        <div class="wrap-book-title">${esc(b.title)}${gr?'<span class="gr-mark">↗</span>':''}</div>
         <div class="wrap-book-pages">${esc(stat)}</div>
-      </div></div>`:'';
+      </div>${gr?'</a>':'</div>'}`;
+  };
   const facts=[
     ['📄','Середня довжина',w.avgPages?w.avgPages+' стор.':'—'],
     ['⭐','Середня оцінка',w.avgRating!=null?w.avgRating:'—'],
@@ -4387,7 +4439,7 @@ function _buildShopHTML(){
         :`<div style="margin-top:3px;font-size:9px;color:var(--gold)">→ веде до ключа «${keyLoc.name}»</div>`;
     }
     return`<div class="shop-row" ${keyLoc&&r.idx===keyLoc.unlockReq.stageIdx?'style="background:rgba(var(--ok-rgb),.06);border-radius:8px;padding:8px 6px;margin:0 -6px"':''}>
-      <img class="sh-emoji" src="${img(r.stage.pid)}" style="width:40px;height:40px;image-rendering:pixelated" onerror="this.style.display='none'">
+      <img class="sh-emoji" src="${img(r.stage.pid)}" alt="" onerror="this.style.visibility='hidden'">
       <div class="sh-info"><div class="sh-name">${r.stage.name}</div><div class="sh-desc">${r.chain.stages.length>1?'Стадія '+(r.idx+1)+'/'+r.chain.stages.length:'Один вид'}</div>${keyNote}</div>
       <div style="text-align:right;flex-shrink:0"><div class="sh-price">🪙${r.price}</div>
       <button class="sh-btn" onclick="buyChainStage('${r.chain.id}',${r.idx})" ${d.coins<r.price?'disabled':''}>Купити</button></div>
@@ -5712,6 +5764,12 @@ function submitPages(){
   if(_addBookRating)book.rating=_addBookRating;
   if(genre)book.genre=genre;
   if(lang&&LANG_META[lang])book.lang=lang;
+  // Посилання на Goodreads раніше викидалось після розпізнавання. Тепер
+  // лишаємо номер книги — з нього друг відкриє її сторінку. Беремо з поля
+  // навіть коли розпізнавання не вдалось і дані вбили руками: посилання
+  // однаково вказує на ту саму книгу.
+  const gr=grIdFromUrl((document.getElementById('sp-goodreads')||{}).value);
+  if(gr)book.gr=gr;
   d.books.push(book);
   jnJumpToLatest();   // нова книга — остання на шляху, до неї й ведемо
   renderRes();renderActions();renderLibraryTab();renderAchievementsWidget();renderGeneralStatsWidget();closeSidePanel();saveToCloud(cur);
