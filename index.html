@@ -240,6 +240,8 @@ a.wrap-book-card{color:inherit;text-decoration:none;}
 .q-card{background:rgba(var(--tl-rgb),.08);border:1px solid rgba(var(--tl-rgb),.3);border-radius:14px;padding:10px 11px;margin-bottom:8px;}
 .q-hint{font-size:10.5px;color:var(--txt-3);margin-top:8px;font-style:italic;}
 .q-bk{color:var(--txt-3);}
+a.q-bk,a.q-gr{text-decoration:none;}
+a.q-gr{color:inherit;}
 /* дошка пройдених: обкладинки ОБОХ книг поруч */
 .q-board{background:rgba(var(--tl-rgb),.06);border:1px solid rgba(var(--tl-rgb),.24);border-radius:14px;padding:10px 11px;margin-bottom:8px;}
 .q-board-hdr{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px;}
@@ -401,6 +403,14 @@ a.wrap-book-card{color:inherit;text-decoration:none;}
 .lang-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 .lang-legend-lbl{color:var(--txt);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .lang-legend-val{color:var(--txt-hi);font-weight:700;flex-shrink:0;margin-left:2px;}
+/* «Товщина книг»: підпис фіксованої ширини, щоб усі смужки стартували з однієї
+   лінії; число праворуч тими ж цифрами однакової ширини. */
+.pg-bars{display:flex;flex-direction:column;gap:6px;}
+.pg-row{display:flex;align-items:center;gap:8px;font-size:11px;}
+.pg-lbl{width:54px;flex-shrink:0;color:var(--txt-2);font-weight:600;font-variant-numeric:tabular-nums;}
+.pg-track{flex:1;height:12px;background:rgba(var(--ink),.08);border-radius:4px;overflow:hidden;}
+.pg-fill{display:block;height:100%;background:var(--accent);border-radius:4px;}
+.pg-val{width:22px;flex-shrink:0;text-align:right;color:var(--txt-hi);font-weight:700;font-variant-numeric:tabular-nums;}
 .star-rating{display:flex;gap:2px;justify-content:center;}
 .star-slot{position:relative;font-size:24px;line-height:1;color:rgba(var(--ink),.15);}
 .star-rating.editable .star-slot{cursor:pointer;}
@@ -1580,6 +1590,47 @@ function renderGenreDonutHTML(books){
     breakdown.length,pluralUA(breakdown.length,'жанр','жанри','жанрів'),
     'Ще не вказано жанр для книг цього періоду');
 }
+// ── Товщина книг: скільки прочитано в кожному діапазоні сторінок ──
+// Смужки, а не бублик: діапазони мають ПОРЯДОК, і читати тут треба форму
+// розподілу — бублик порядок губить, а на сім сегментів ще й вимагав би сім
+// різних кольорів. Один колір теми: діапазон і так підписаний.
+// Межі: 100–299 розбито надвоє, бо саме там більшість книг сім'ї (дитячі
+// повісті й коротка проза); 1000–1199 і 1200+ злито — вони майже завжди
+// порожні. 500 і 700 збігаються з рівнями ачівки «Товстенна книга».
+// Порожні діапазони НЕ ховаємо: інакше розподіл «стискається» і бреше.
+const PAGE_BINS=[
+  {lbl:'до 100',max:99},{lbl:'100–199',max:199},{lbl:'200–299',max:299},
+  {lbl:'300–499',max:499},{lbl:'500–699',max:699},{lbl:'700–999',max:999},
+  {lbl:'1000+',max:Infinity},
+];
+function pagesBreakdown(books){
+  const n=PAGE_BINS.map(()=>0);
+  (books||[]).forEach(b=>{
+    const p=+(b&&b.pages)||0;
+    if(p<1)return;                           // без сторінок — не вгадуємо
+    n[PAGE_BINS.findIndex(x=>p<=x.max)]++;
+  });
+  return PAGE_BINS.map((x,i)=>({label:x.lbl,count:n[i]}));
+}
+function renderPagesChartHTML(books){
+  const rows=pagesBreakdown(books);
+  const total=rows.reduce((s,r)=>s+r.count,0);
+  if(!total)return`<div class="stats-chart-card">
+      <div class="stats-chart-title">Товщина книг</div>
+      <div style="text-align:center;color:var(--txt-4);font-size:12px;padding:20px 0">Ще немає книг</div>
+    </div>`;
+  const max=Math.max.apply(null,rows.map(r=>r.count));
+  return`<div class="stats-chart-card">
+    <div class="stats-chart-title">Товщина книг</div>
+    <div class="pg-bars">${rows.map(r=>{
+      const pct=Math.round(r.count/total*100);
+      return`<div class="pg-row" title="${r.label} стор.: ${r.count} ${bookWord(r.count)} · ${pct}%">
+        <span class="pg-lbl">${r.label}</span>
+        <span class="pg-track"><span class="pg-fill" style="width:${r.count?Math.max(3,r.count/max*100):0}%"></span></span>
+        <span class="pg-val">${r.count}</span>
+      </div>`;}).join('')}</div>
+  </div>`;
+}
 // map2 мав ланцюжки, але кольору не мав — у бублику прогресу його сегмент
 // малювався з undefined. Колір узятий із самої локації (stroke у LOCS).
 const LOC_COLORS={oak:'#4ade80',pallet:'#38bdf8',forest:'#facc15',glade:'#a78bfa',butterfly:'#f472b6',caves:'#94a3b8',shore:'#fb923c',map2:'#60a5fa'};
@@ -1787,11 +1838,12 @@ function renderGeneralStatsWidget(){
   const formatDonut=renderFormatDonutHTML(d.books||[]);
   const langDonut=renderLangDonutHTML(d.books||[]);
   const genreDonut=renderGenreDonutHTML(d.books||[]);
+  const pagesChart=renderPagesChartHTML(d.books||[]);
   const locProgress=renderLocationProgressHTML(d);
 
   const periodCard=`<div class="stats-chart-card">${periodTabs}${tiles}</div>`;
 
-  el.innerHTML=`${periodCard}${chart}${formatDonut}${langDonut}${genreDonut}${locProgress}`;
+  el.innerHTML=`${periodCard}${chart}${formatDonut}${langDonut}${genreDonut}${pagesChart}${locProgress}`;
 }
 function showChartTip(evt,value){
   const g=evt.currentTarget;
@@ -3062,9 +3114,11 @@ function _grScrub(b){
 function sanitizeFriends(list){
   return(Array.isArray(list)?list:[]).filter(f=>f&&typeof f==='object').map(f=>{
     // id квесту йде в onclick="acceptQuest('…')" — лише те, що ми самі генеруємо.
-    if(Array.isArray(f.q))f.q=f.q.filter(x=>x&&typeof x==='object'&&
-      /^[A-Za-z0-9]{1,32}$/.test(String(x.id||''))&&GENRES.indexOf(String(x.g))>=0).slice(0,20);
-    else delete f.q;
+    if(Array.isArray(f.q)){
+      f.q=f.q.filter(x=>x&&typeof x==='object'&&
+        /^[A-Za-z0-9]{1,32}$/.test(String(x.id||''))&&GENRES.indexOf(String(x.g))>=0).slice(0,20);
+      f.q.forEach(x=>_grScrub(x.b));   // книга квесту теж несе номер Goodreads
+    }else delete f.q;
     // Локація йде в ключ мапи (розстановка фішок) і в пошук по LOCS. Лишаємо
     // тільки той id, який у нас справді є: чужого рядка на цьому місці бути
     // не повинно взагалі.
@@ -3559,10 +3613,21 @@ function qPublic(d){
     .slice(0,Q_PUB_MAX)
     .map(q=>{
     const rec={id:q.id,w:q.with,g:q.g,ts0:q.ts0||0,st:q.st,m:m[q.id]!==undefined?1:0};
-    const b=m[q.id]!==undefined?(d.books||[])[m[q.id]]:null;
-    if(b)rec.b={t:String(b.title||'').slice(0,80),c:b.coverUrl||null};
+    const b=m[q.id]!==undefined?(d.books||[])[m[q.id]]:_qDoneBook(d,q.id);
+    if(b)rec.b=_withGr({t:String(b.title||'').slice(0,80),c:b.coverUrl||null},b);
     return rec;
   });
+}
+// Книга, якою людина закрила квест. qMatchAll дивиться лише на АКТИВНІ
+// квести, тому після закриття книга зникала зі зліпка — і той, хто
+// закривав другим, бачив на дошці «?» замість книги друга. Беремо її з
+// власної дошки: там ключ книги, а обкладинку — з бібліотеки за ключем.
+// Книгу видалили — лишається хоча б назва.
+function _qDoneBook(d,id){
+  const r=(d.questsDone||[]).find(x=>x&&x.id===id);
+  if(!r||!r.my)return null;
+  const b=(d.books||[]).find(x=>x&&reaxKey(x.title,x.author)===r.my.k);
+  return b||{title:r.my.t,coverUrl:null};
 }
 function qTheirs(q){
   const f=(friendsData.friends||[]).find(x=>String(x.userId)===String(q.with));
@@ -3622,11 +3687,24 @@ function questsTick(){
     return true;
   });
   // Те саме для дошки пройдених: там нік теж лежить знімком.
+  const boardBefore=JSON.stringify(d.questsDone||[]);
   (d.questsDone||[]).forEach(r=>{
     const f=(friendsData.friends||[]).find(x=>String(x.userId)===String(r.with));
     if(f&&f.nick&&r.withNick!==f.nick)r.withNick=f.nick;
+    // Дошка, записана з «?» (друг закрив першим і його книга до нас не
+    // доїхала), — підхоплюємо книгу, щойно друг знову її публікує.
+    // Лише порожнє місце: уже записане чужий зліпок не переписує.
+    const t=r.their&&r.their.gr?null:qTheirs(r);
+    if(!r.their){
+      if(t&&t.b&&t.b.t)r.their=_withGr({t:String(t.b.t).slice(0,80),c:t.b.c||null},t.b);
+    }else if(t&&t.b&&t.b.t===r.their.t){
+      // Дошка без номера Goodreads (закрито до того, як його почали
+      // передавати): дописуємо лише номер і лише до ТІЄЇ САМОЇ книги —
+      // назва й обкладинка лишаються як були.
+      _withGr(r.their,t.b);
+    }
   });
-  const changed=JSON.stringify(d.quests)!==before;
+  const changed=JSON.stringify(d.quests)!==before||JSON.stringify(d.questsDone||[])!==boardBefore;
   if(changed)saveToCloud(cur);
   return changed;
 }
@@ -3646,7 +3724,7 @@ function questsSettle(silent){
     const b=(d.books||[])[idx];
     const rec={id:q.id,with:q.with,withNick:q.withNick,g:q.g,ts0:q.ts0,endedAt:Date.now(),
       my:{t:b.title,k:reaxKey(b.title,b.author)},
-      their:(t&&t.b)?{t:t.b.t,c:t.b.c||null}:null};
+      their:(t&&t.b)?_withGr({t:t.b.t,c:t.b.c||null},t.b):null};
     (d.questsDone=d.questsDone||[]).push(rec);
     if(d.questsDone.length>Q_BOARD_MAX)d.questsDone=d.questsDone.slice(-Q_BOARD_MAX);
     if(b)b.q={n:q.withNick,g:q.g};
@@ -3786,8 +3864,24 @@ function qPairHTML(r){
   return`<div class="q-pair">
     <div class="q-pair-side">${qCoverHTML(qMyCover(r),'q-cover')}<div class="q-pair-n">Ти</div></div>
     <div class="q-pair-plus">🤝</div>
-    <div class="q-pair-side">${qCoverHTML(r.their,'q-cover')}<div class="q-pair-n">${esc(qNick(r))}</div></div>
+    ${_qTheirSideHTML(r)}
   </div>`;
+}
+// Бік друга: є номер Goodreads — обкладинка разом з ніком стає посиланням
+// на сторінку книги (↗ біля ніка). Немає — той самий вигляд, просто <div>.
+function _qTheirSideHTML(r){
+  const g=grUrl(r&&r.their&&r.their.gr);
+  const inner=`${qCoverHTML(r.their,'q-cover')}<div class="q-pair-n">${esc(qNick(r))}${g?'<span class="gr-mark">↗</span>':''}</div>`;
+  return g
+    ?`<a class="q-pair-side q-gr" href="${g}" target="_blank" rel="noopener noreferrer">${inner}</a>`
+    :`<div class="q-pair-side">${inner}</div>`;
+}
+// Назва книги друга в картці активного квесту — посиланням, якщо є номер.
+function _qTheirTitleHTML(b){
+  const g=grUrl(b&&b.gr);
+  return g
+    ?`<a class="q-bk" href="${g}" target="_blank" rel="noopener noreferrer">${esc(b.t)}<span class="gr-mark">↗</span></a>`
+    :`<span class="q-bk">${esc(b.t)}</span>`;
 }
 function questsBoardHTML(){
   const list=qDone().slice().sort((a,b)=>(+b.endedAt||0)-(+a.endedAt||0));
@@ -3856,7 +3950,7 @@ function questsBlockHTML(){
       <div class="q-side"><span class="q-tick${meOk?' on':''}">${meOk?'✓':'○'}</span>
         Ти${myBook?` · <span class="q-bk">${esc(myBook.title)}</span>`:''}</div>
       <div class="q-side"><span class="q-tick${themOk?' on':''}">${themOk?'✓':'○'}</span>
-        ${esc(qNick(q))}${(t&&t.b&&t.b.t)?` · <span class="q-bk">${esc(t.b.t)}</span>`:''}</div>
+        ${esc(qNick(q))}${(t&&t.b&&t.b.t)?` · ${_qTheirTitleHTML(t.b)}`:''}</div>
       ${meOk?'':`<div class="q-hint">Прочитай книгу з жанром «${esc(q.g)}»</div>`}
     </div>`);
   });
