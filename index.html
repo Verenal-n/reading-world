@@ -3608,7 +3608,7 @@ function qPublic(d){
   // назва й посилання на обкладинку. Тому спершу живі квести, далі —
   // найсвіжіші службові записи, і не більше Q_PUB_MAX.
   const rank=q=>(q.st==='act'||q.st==='inv')?0:1;
-  return(d.quests||[]).slice()
+  const live=(d.quests||[]).slice()
     .sort((a,b)=>rank(a)-rank(b)||(+b.tsUp||0)-(+a.tsUp||0))
     .slice(0,Q_PUB_MAX)
     .map(q=>{
@@ -3617,6 +3617,22 @@ function qPublic(d){
     if(b)rec.b=_withGr({t:String(b.title||'').slice(0,80),c:b.coverUrl||null},b);
     return rec;
   });
+  // Вільні місця — записам із власної дошки. Закритий квест живе в d.quests
+  // лише Q_SEEN_MS, і після цього друг втрачав і мою галочку, і мою книгу:
+  // старі дошки лишались зі «?» назавжди, а його бік квесту, якщо він не
+  // заходив у гру ці два дні, не закривався вже ніколи. Запис із дошки —
+  // той самий 'done' з книгою, тож обидва шляхи підхоплюють його без змін.
+  const seen={};live.forEach(x=>{seen[x.id]=1;});
+  const board=(d.questsDone||[]).filter(r=>r&&r.id&&r.with&&!seen[r.id])
+    .sort((a,b)=>(+b.endedAt||0)-(+a.endedAt||0))
+    .slice(0,Math.max(0,Q_PUB_MAX-live.length))
+    .map(r=>{
+      const rec={id:r.id,w:r.with,g:r.g,ts0:r.ts0||0,st:'done',m:0};
+      const b=_qDoneBook(d,r.id);
+      if(b)rec.b=_withGr({t:String(b.title||'').slice(0,80),c:b.coverUrl||null},b);
+      return rec;
+    });
+  return live;
 }
 // Книга, якою людина закрила квест. qMatchAll дивиться лише на АКТИВНІ
 // квести, тому після закриття книга зникала зі зліпка — і той, хто
