@@ -3632,7 +3632,7 @@ function qPublic(d){
       if(b)rec.b=_withGr({t:String(b.title||'').slice(0,80),c:b.coverUrl||null},b);
       return rec;
     });
-  return live;
+  return live.concat(board);
 }
 // Книга, якою людина закрила квест. qMatchAll дивиться лише на АКТИВНІ
 // квести, тому після закриття книга зникала зі зліпка — і той, хто
