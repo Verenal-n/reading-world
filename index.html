@@ -2549,9 +2549,16 @@ function openAchievementDetail(key){
 }
 
 // ═══════════ MODAL QUEUE ═══════════
+// Черга чекає й на попап, відкритий НЕ через неї (mHTML напряму): інакше
+// наступний ліг би поверх, а ✕ на верхньому закривав би нижній.
 function qM(fn){mQueue.push(fn);if(!mOpen)nextM();}
-function nextM(){if(!mQueue.length){mOpen=false;_flushAchToast();return;}mOpen=true;mQueue.shift()();}
-function closeModal(){const m=document.getElementById('mOv');if(m)m.remove();nextM();}
+function nextM(){
+  if(!mQueue.length){mOpen=false;_flushAchToast();return;}
+  if(document.getElementById('mOv')){mOpen=false;return;}   // дочекаємось closeModal
+  mOpen=true;mQueue.shift()();
+}
+// Закриваємо ВЕРХНІЙ попап — той, на якому натиснули ✕.
+function closeModal(){const all=document.querySelectorAll('#mOv');const m=all[all.length-1];if(m)m.remove();nextM();}
 
 // Every modal gets the same dismiss affordance — a fixed ✕ in the corner —
 // so no popup needs its own "Закрити"/"Скасувати" button just to go away.
@@ -3554,11 +3561,11 @@ const Q_DAYS=30;                       // активний квест живе 3
 const Q_MS=Q_DAYS*86400000;
 const Q_INV_MS=7*86400000;             // запрошення без відповіді — 7 днів
 const Q_SEEN_MS=2*86400000;
-const Q_DECL_MS=60*86400000;           // «вже відмовився» — підказка, не заборона
+const Q_DECL_MS=60*86400000;           // «уже була відмова» — підказка, не заборона
 const Q_DEC_MS=86400000;               // «друг відхилив» — показуємо добу
 const Q_DECID_MS=8*86400000;           // пам'ять про відхилене запрошення
 const Q_BOARD_MAX=60;                  // дошка: скільки квестів пам'ятаємо
-const Q_PUB_MAX=12;                    // скільки квестів їде другові у зліпку            // dec/done — доки другий бік побачить
+const Q_PUB_MAX=12;                    // скільки квестів їде другові у зліпку
 function qList(){const d=pd();if(!d)return[];if(!d.quests)d.quests=[];return d.quests;}
 function qDone(){const d=pd();if(!d)return[];if(!d.questsDone)d.questsDone=[];return d.questsDone;}
 function qDecl(){const d=pd();if(!d)return{};if(!d.questDecl)d.questDecl={};return d.questDecl;}
@@ -3665,6 +3672,9 @@ function qIncoming(){
       // поверталось би, коли службовий запис згорить). Той самий жанр друг
       // може прислати заново — це нове запрошення з новим id.
       if(declIds[x.id])return;
+      // Один активний на друга: зустрічне запрошення, що розминулось із
+      // уже прийнятим, не показуємо — інакше вийшло б два квести з одним другом.
+      if(mine.some(q=>String(q.with)===String(f.userId)&&q.st==='act'))return;
       out.push({id:x.id,from:String(f.userId),fromNick:f.nick,g:String(x.g||'')});
     });
   });
@@ -3676,6 +3686,7 @@ function qIncoming(){
 function questsTick(){
   const d=pd();if(!d)return false;
   const before=JSON.stringify(d.quests||[]);
+  const m=qMatchAll(d);
   d.quests=(d.quests||[]).filter(q=>{
     if(!q||!q.id||!q.with)return false;
     const friend=(friendsData.friends||[]).some(x=>String(x.userId)===String(q.with));
@@ -3683,23 +3694,41 @@ function questsTick(){
     // Нік міг змінитись — підтягуємо в запис, щоб не показувати старий.
     const fr=(friendsData.friends||[]).find(x=>String(x.userId)===String(q.with));
     if(fr&&fr.nick&&q.withNick!==fr.nick)q.withNick=fr.nick;
-    const age=Date.now()-(+q.tsUp||+q.ts0||0);
-    if(q.st==='act'&&q.ts0&&Date.now()-q.ts0>Q_MS)return false;
-    if(q.st==='inv'&&age>Q_INV_MS)return false;
-    if(q.st==='dec'&&age>Q_DEC_MS)return false;      // сповіщення живе добу
-    if(q.st==='done'&&age>Q_SEEN_MS)return false;
     const t=qTheirs(q);
+    // Друг прийняв — це треба побачити ДО перевірки строку запрошення: інакше
+    // прийняте на шостий день запрошення, коли я зайду на восьмий, згорало б,
+    // і в друга лишався квест без другого боку.
+    if(q.st==='inv'&&t&&t.st==='act'){q.st='act';q.ts0=+t.ts0||Date.now();q.tsUp=Date.now();}
+    const age=Date.now()-(+q.tsUp||+q.ts0||0);
+    // Строк не забирає квест, який друг уже закрив, а в мене є книга: обидва
+    // прочитали вчасно, я просто не заходила в гру. Інакше на дошці квест
+    // був би лише в одного з двох. questsSettle закриє його одразу після.
+    const closedByThem=t&&t.st==='done'&&m[q.id]!==undefined;
+    if(q.st==='act'&&q.ts0&&Date.now()-q.ts0>Q_MS&&!closedByThem)return false;
+    if(q.st==='inv'&&age>Q_INV_MS)return false;
+    // Сповіщення «друг відхилив» живе добу. Своя відмова — довше: вона
+    // існує лише для того, щоб друг дізнався. Тримаємо її, поки в друга ще
+    // висить запрошення (не довше за пам'ять про відхилене), і щонайменше 2 дні.
+    if(q.st==='dec'&&q.by!=='me'&&age>Q_DEC_MS)return false;
+    if(q.st==='dec'&&q.by==='me'&&age>Q_SEEN_MS&&!(t&&t.st==='inv'&&age<Q_DECID_MS))return false;
+    if(q.st==='done'&&age>Q_SEEN_MS)return false;
+    // Активний квест, у якого в друга запису немає: друг скасував запрошення
+    // в ту саму мить, коли я його прийняла, або прийняв моє зустрічне. Другого
+    // боку не буде — без цього квест висів би сам 30 днів. Тихо, як і строк.
+    if(q.st==='act'&&_frState==='ok'&&friend&&!t)return false;
     // Друг скасував квест або його запис уже згорів — тримати сповіщення
     // «він відхилив» нема сенсу, воно вже ні про що.
     if(q.st==='dec'&&q.by!=='me'&&_frState==='ok'&&!t)return false;
     // Друг відмовився. НЕ видаляємо тихо: інакше запрошення просто зникає,
     // і людина не розуміє, що сталось (і чому жанр більше не пропонується).
     // Помічаємо своє й лишаємо на Q_SEEN_MS — далі воно згорить саме.
+    // Мітка «уже була відмова» — тут, у того, хто запрошував: саме він
+    // обирає жанр наступного разу. Раніше її писав лише той, хто відмовив,
+    // і запрошувач її не бачив ніколи.
     if(t&&t.st==='dec'){
-      if(q.st!=='dec'){q.st='dec';q.tsUp=Date.now();}
+      if(q.st!=='dec'){q.st='dec';q.tsUp=Date.now();qDecl()[q.with+'|'+q.g]=Date.now();}
       return true;
     }
-    if(q.st==='inv'&&t&&t.st==='act'){q.st='act';q.ts0=+t.ts0||Date.now();q.tsUp=Date.now();}
     return true;
   });
   // Те саме для дошки пройдених: там нік теж лежить знімком.
@@ -3753,12 +3782,14 @@ function questsSettle(silent){
     renderLibraryTab();renderAchievementsWidget();
     if(!silent){
       const r=fresh[0];
-      mHTML(`${M_CLOSE_BTN}<div class="m-emoji">🤝</div>
+      // Через чергу: квест закривається й у фоні (завантаження друзів), коли
+      // вже відкритий інший попап.
+      qM(()=>mHTML(`${M_CLOSE_BTN}<div class="m-emoji">🤝</div>
         <div class="m-title">Квест пройдено!</div>
         <div class="m-desc" style="margin-bottom:14px">Ти і ${esc(qNick(r))} прочитали «${esc(r.g)}».
           Обидві книги — на дошці пройдених квестів.</div>
         ${qPairHTML(r)}
-        <button class="btn-ok" style="width:100%;margin-top:14px;padding:12px" onclick="closeModal()">Клас</button>`);
+        <button class="btn-ok" style="width:100%;margin-top:14px;padding:12px" onclick="closeModal()">Клас</button>`));
     }
     celebrateNewAchievements(d,beforeAch);
   }
@@ -3767,30 +3798,44 @@ function questsSettle(silent){
 
 // ── створення й відповіді ──
 function openQuestCreate(fid,skipGenre){
+  // Друг, від якого чекає запрошення, теж не в списку: на нього відповідають
+  // кнопками на плашці, а зустрічне дало б два квести з одним другом.
+  const inc=qIncoming();
   const friends=(friendsData.friends||[]).filter(f=>!qList().some(q=>
-    String(q.with)===String(f.userId)&&(q.st==='inv'||q.st==='act')));
+    String(q.with)===String(f.userId)&&(q.st==='inv'||q.st==='act'))&&
+    !inc.some(x=>x.from===String(f.userId)));
   if(!friends.length){showToast('З усіма друзями квест уже є');return;}
   const sel=friends.some(f=>String(f.userId)===String(fid))?String(fid):String(friends[0].userId);
-  const decl=qDecl();
-  // Раніше жанр після відмови ЗНИКАВ зі списку — назавжди й без пояснень,
-  // тому запропонувати те саме вдруге було неможливо. Тепер це підказка:
-  // жанр на місці, просто помічений.
-  const genres=GENRES.filter(g=>g!==skipGenre);
-  const declLbl=g=>{
-    const was=+decl[sel+'|'+g]||0;
-    return (was&&Date.now()-was<Q_DECL_MS)?' — вже відмовлявся':'';
-  };
   mHTML(`${M_CLOSE_BTN}<div class="m-title">🤝 Спільний квест</div>
     <div class="m-desc" style="margin-bottom:12px">По одній книзі з кожного. ${Q_DAYS} днів.</div>
     <div class="flbl">З ким</div>
-    <select id="q-friend" class="finput" onchange="openQuestCreate(this.value)">
+    <select id="q-friend" class="finput" onchange="qCreateFriendChanged(this.value)">
       ${friends.map(f=>`<option value="${esc(f.userId)}" ${String(f.userId)===sel?'selected':''}>${esc(f.nick)}</option>`).join('')}
     </select>
     <div class="flbl">Жанр</div>
-    <select id="q-genre" class="finput">
-      ${genres.map(g=>`<option value="${esc(g)}">${esc(g)}${declLbl(g)}</option>`).join('')}
+    <select id="q-genre" class="finput" data-skip="${esc(skipGenre||'')}">
+      ${_qGenreOpts(sel,skipGenre,'')}
     </select>
     <button class="btn-ok" style="width:100%;padding:13px;margin-top:6px" onclick="sendQuest()">Запропонувати</button>`);
+}
+// Раніше жанр після відмови ЗНИКАВ зі списку — назавжди й без пояснень,
+// тому запропонувати те саме вдруге було неможливо. Тепер це підказка:
+// жанр на місці, просто помічений.
+function _qGenreOpts(fid,skipGenre,chosen){
+  const decl=qDecl();
+  return GENRES.filter(g=>g!==skipGenre).map(g=>{
+    const was=+decl[fid+'|'+g]||0;
+    const lbl=(was&&Date.now()-was<Q_DECL_MS)?' — уже була відмова':'';
+    return`<option value="${esc(g)}" ${g===chosen?'selected':''}>${esc(g)}${lbl}</option>`;
+  }).join('');
+}
+// Зміна друга НЕ перемальовує попап. Раніше перемальовувала: mHTML додає
+// новий #mOv поверх старого, людина обирала жанр у верхньому, а sendQuest
+// через getElementById читав нижній — там лишався перший жанр списку
+// («Фентезі»). Тепер міняються лише мітки «уже була відмова», обраний жанр лишається.
+function qCreateFriendChanged(fid){
+  const el=document.getElementById('q-genre');
+  if(el)el.innerHTML=_qGenreOpts(fid,el.dataset.skip||'',el.value);
 }
 function sendQuest(){
   const fid=document.getElementById('q-friend')?.value;
@@ -3810,6 +3855,10 @@ function sendQuest(){
 function acceptQuest(id){
   const inc=qIncoming().find(x=>x.id===id);
   if(!inc)return;
+  // Запрошення розминулись: я теж кликала цього друга. Моє зустрічне
+  // знімаємо — один активний на друга.
+  const d=pd();
+  d.quests=(d.quests||[]).filter(q=>!(String(q.with)===inc.from&&q.st==='inv'));
   qList().push({id:inc.id,with:inc.from,withNick:inc.fromNick,g:inc.g,
                 ts0:Date.now(),tsUp:Date.now(),st:'act'});
   saveToCloud(cur);
@@ -3820,7 +3869,6 @@ function acceptQuest(id){
 function declineQuest(id,counter){
   const inc=qIncoming().find(x=>x.id===id);
   if(!inc)return;
-  qDecl()[inc.from+'|'+inc.g]=Date.now();     // підказка у виборі жанру
   const ids=qDeclIds();
   ids[inc.id]=Date.now();
   Object.keys(ids).forEach(k=>{if(Date.now()-(+ids[k]||0)>Q_DECID_MS)delete ids[k];});
@@ -3935,7 +3983,7 @@ function questsBlockHTML(){
     if(q.st==='dec'){
       cards.push(`<div class="q-card">
         <div class="q-hdr"><span class="q-emoji">🚫</span>
-          <div><div class="q-title">${esc(qNick(q))} відхилив квест</div>
+          <div><div class="q-title">Відмова · ${esc(qNick(q))}</div>
             <div class="q-sub">Жанр: ${esc(q.g)}</div></div></div>
         <div class="q-btns">
           <button class="fr-btn" onclick="openQuestCreate('${esc(q.with)}')">Запропонувати ще раз</button>
