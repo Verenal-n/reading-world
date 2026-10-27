@@ -2854,6 +2854,7 @@ async function loadStateFor(userId,tryCloud,pre){
   };
   if(!(tryCloud&&me&&me.token)){keepLocal();return;}
   const r=pre||await _api({action:'load',userId:userId,token:me.token});
+  if(r&&r.ok&&me&&userId===me.userId)_cloudOk=true;   // cur на вході ще не стоїть
   // Локальна копія лишається робочою, але сказати про причину треба:
   // інакше пошкоджений сейв виглядає як «просто нічого не підтяглось».
   if(r&&r.error&&r.error!=='auth'&&r.error!=='network')showToast(r.error);
@@ -2919,6 +2920,11 @@ function enterGame(){
   checkGoalEvents();
 }
 
+let _cloudSync=null;   // проміс bootSync, поки хмарний сейв ще не приїхав
+// Пам'ять звірена з хмарою: сейв приїхав або наше збереження дійшло. Доки
+// ні — пам'ять може бути старою, і зліпок для друзів та квести (вони
+// зберігаються самі) від неї не рахуються.
+let _cloudOk=false;
 // Гра вже відкрита з локальної копії. Тепер тихо перевіряємо сесію й
 // забираємо хмарний сейв; якщо він новіший — перемальовуємо. Токен помер —
 // відправляємо на вхід, але дані на пристрої лишаються цілі.
@@ -2971,8 +2977,12 @@ async function boot(){
   // як «довго завантажується».
   if(lsGet('rpg_state_'+s.userId,null)){
     await loadStateFor(me.userId,false);
+    // Поки хмара не відповіла, у пам'яті копія з ЦЬОГО пристрою, і вона буває
+    // старою (грали з іншого). Зліпок для друзів і друзі (квести, а з ними й
+    // збереження) чекають на хмару: інакше старий зліпок затирав запрошення,
+    // створене на іншому пристрої, і друг його не отримував.
+    _cloudSync=bootSync().catch(()=>{}).finally(()=>{_cloudSync=null;});
     enterGame();
-    bootSync();
     return;
   }
   renderLoginLoading();
@@ -3213,7 +3223,8 @@ function countMega(d){
 
 // Викласти свій публічний зліпок, не перезаписуючи блоб сейву.
 async function pushPublic(){
-  if(!me||me.guest||!me.token||!cur)return;
+  if(_cloudSync)await _cloudSync;      // див. boot(): не викладати стару копію
+  if(!me||me.guest||!me.token||!cur||!_cloudOk)return;
   try{
     await _api({action:'pubSet',userId:me.userId,token:me.token,
                 pub:JSON.stringify(buildPublicSummary(state.players[cur]))});
@@ -3227,7 +3238,11 @@ let _frState='idle';     // idle | loading | ok | error
 let _frErr='';
 let _frPromise=null;
 
+let _frLoadedAt=0;
 async function loadFriends(silent){
+  // Квести рахуються й зберігаються від того, що в пам'яті, — тому теж
+  // чекаємо на хмару (див. boot()).
+  if(_cloudSync)await _cloudSync;
   if(!me||me.guest||!me.token)return;
   // Якщо запит уже в дорозі — приєднуємось до нього, а не виходимо мовчки.
   // Саме через «вийти мовчки» таб лишався порожнім, коли його відкривали
@@ -3240,10 +3255,9 @@ async function loadFriends(silent){
     if(r&&r.ok){
       friendsData={friends:sanitizeFriends(r.friends),incoming:r.incoming||[],
                    outgoing:r.outgoing||[],reax:r.reax||[]};
-      _frState='ok';
+      _frState='ok';_frLoadedAt=Date.now();
       syncFriendPins();
-      questsTick();
-      questsSettle();
+      if(_cloudOk){questsTick();questsSettle();}   // від неперевіреної пам'яті не зберігаємо
       updateFriendBadge();
       renderMap();
       // Таб закритий — про нові реакції інакше ніхто не дізнається, крім
@@ -6110,6 +6124,7 @@ async function _pushSave(pid){
     // Позначаємо доїханим ЛИШЕ після успіху — інакше провалений рейс назавжди
     // переконав би нас, що відгуки на сервері вже є.
     if(revsChanged)_revsSent[pid]=revsStr;
+    if(me&&pid===me.userId)_cloudOk=true;   // у хмарі тепер саме те, що в пам'яті
     showSaveStatus('saved');
     // Зліпок для друзів не влазив у стовпчик: друзі бачили б застиглі числа.
     if(r.pubSkipped&&!_pubWarned){_pubWarned=1;showToast('Дані для друзів завеликі — напиши мені');}
@@ -6162,7 +6177,28 @@ boot();
 window.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='hidden'&&cur)
     saveLocal('rpg_state_'+cur,JSON.stringify(state.players[cur]));
+  if(document.visibilityState==='visible')refreshFriendsIfStale();
 });
+// Друзі (а з ними запрошення в квест і ❤️) раніше підтягувались лише на вході
+// в гру й на вкладці «Друзі». На телефоні гра місяцями живе в фоні, і друг не
+// бачив запрошення, доки не перезапустить її. Тепер — щоразу, як гру
+// розгорнули, і раз на 5 хвилин, поки вона на екрані.
+// СПЕРШУ свіжий сейв із хмари: пам'ять давно відкритої вкладки стара (могли
+// грати з іншого пристрою), а квести після друзів зберігаються самі — і
+// затерли б у хмарі все, що додали деінде.
+const FR_STALE_MS=60000,FR_POLL_MS=5*60000;
+function refreshFriendsIfStale(){
+  if(!me||me.guest||!me.token||!cur)return;
+  if(Date.now()-_frLoadedAt<FR_STALE_MS)return;
+  if(!_cloudSync){
+    _cloudOk=false;
+    _cloudSync=bootSync().catch(()=>{}).finally(()=>{_cloudSync=null;});
+  }
+  loadFriends(true);
+}
+setInterval(()=>{
+  if(document.visibilityState==='visible'&&Date.now()-_frLoadedAt>=FR_POLL_MS)refreshFriendsIfStale();
+},60000);
 </script>
 </body>
 </html>
