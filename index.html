@@ -2665,10 +2665,15 @@ function pickTheme(id){
 const API_TIMEOUT=30000;
 async function _api(payload){
   if(!SCRIPT_URL)return{error:'no-backend'};
-  // AbortSignal.timeout немає в Safari до 16 — там лишаємось без таймауту,
-  // як було, замість того щоб упасти на самому виклику.
+  // AbortSignal.timeout немає в Safari до 16 — там той самий таймаут руками.
+  // Без нього запит, що завис, тримав би вічно і старт гри (друзі, квести
+  // чекають на хмару), і рейс збереження.
   let signal;
-  try{signal=AbortSignal.timeout(API_TIMEOUT);}catch(e){signal=undefined;}
+  try{signal=AbortSignal.timeout(API_TIMEOUT);}
+  catch(e){
+    try{const c=new AbortController();setTimeout(()=>c.abort(),API_TIMEOUT);signal=c.signal;}
+    catch(e2){signal=undefined;}
+  }
   try{
     const res=await fetch(SCRIPT_URL,{
       method:'POST',
@@ -2843,9 +2848,15 @@ function finishGuest(g){
 // `pre` — сейв, який уже приїхав чужим рейсом (bootSync бере його разом із
 // сесією). Немає — ходимо по нього самі, як раніше.
 async function loadStateFor(userId,tryCloud,pre){
+  // Гравець уже в грі в ЦІЙ вкладці (звірка при розгортанні): її пам'ять і є
+  // її копія. localStorage спільний для всіх вкладок пристрою — там може
+  // лежати пам'ять ІНШОЇ, старої вкладки, і вливати її сюди не можна: вона
+  // потім зберігалась би від свіжої версії й затирала щойно додане.
+  const live=cur===userId&&!!state.players[userId];
   initState(userId);
-  const local=lsGet('rpg_state_'+userId,null);
-  if(local)state.players[userId]=Object.assign({},state.players[userId],local);
+  const stored=lsGet('rpg_state_'+userId,null);
+  if(stored&&!live)state.players[userId]=Object.assign({},state.players[userId],stored);
+  const local=live?state.players[userId]:stored;
   // Переносимо старий формат дати ДО всього іншого — і локальну копію, і
   // хмарну, бо новішою може виявитись будь-яка з них.
   let mig=migrateBookDates(state.players[userId]);
@@ -2853,24 +2864,69 @@ async function loadStateFor(userId,tryCloud,pre){
     if(mig)saveLocal('rpg_state_'+userId,JSON.stringify(state.players[userId]));
   };
   if(!(tryCloud&&me&&me.token)){keepLocal();return;}
+  const seq0=(pre&&pre.seq!==undefined)?pre.seq:_saveSeq;
   const r=pre||await _api({action:'load',userId:userId,token:me.token});
+  if(!me||me.userId!==userId)return;   // поки чекали, увійшов інший гравець
+  // Поки відповідь їхала, наше власне збереження дійшло (або ще в дорозі):
+  // сервер прочитав сейв РАНІШЕ за нього, і ця відповідь старша за пам'ять.
+  // Застосувати її — означало б відкотити щойно додане. Збереження саме
+  // звірить версію: пройде — хмара вже наша, ні — `_takeCloud`.
+  if(r&&r.ok&&r.savedAt!==undefined&&(_saveSeq!==seq0||_saveBusy[userId])){
+    console.log('[Load] відповідь старша за наше збереження — не застосовую');
+    return;
+  }
   if(r&&r.ok&&me&&userId===me.userId)_cloudOk=true;   // cur на вході ще не стоїть
   // Локальна копія лишається робочою, але сказати про причину треба:
   // інакше пошкоджений сейв виглядає як «просто нічого не підтяглось».
   if(r&&r.error&&r.error!=='auth'&&r.error!=='network')showToast(r.error);
+  // Хмарний сейв пошкоджений, але версію сервер віддав: лишаємось на своїй
+  // копії, і наступне збереження пройде звірку й полікує клітинку.
+  if(r&&r.error&&r.savedAt!==undefined&&state.players[userId])state.players[userId]._base=r.savedAt;
   if(!(r&&r.ok&&r.state&&Object.keys(r.state).length>0)){keepLocal();return;}
   // Порівнюємо і зі знімком ДО запиту, і з тим, що в пам'яті ЗАРАЗ: поки
   // хмарний сейв їхав, людина могла додати книгу, і ця книга новіша за все.
   const cloudTs=+r.state._ts||0;
   const localTs=Math.max((local&&+local._ts)||0,+((state.players[userId]||{})._ts)||0);
-  if(localTs&&cloudTs&&localTs>cloudTs){
-    // Локальне новіше — лишаємо його й одразу лікуємо розбіжність у хмарі.
+  // Версія сейву (`_base` у пам'яті = `savedAt` хмарного сейву, з якого вона
+  // пішла). Новий бекенд її віддає; старий — ні, тоді працює колишнє правило.
+  // Своє незбережене заливаємо, лише якщо відтоді в хмару ніхто не писав.
+  // Інакше перемагає хмара: раніше перемагав більший `_ts`, і стара копія з
+  // пізнішою міткою затирала все, що зроблено на іншому пристрої.
+  // Копія БЕЗ `_base` при новому бекенді — це копія старого коду (стара
+  // вкладка пише свою пам'ять у localStorage). Її мітці часу не віримо:
+  // перемагає хмара, інакше стара пам'ять залилась би поверх усього.
+  const cloudAt=r.savedAt;
+  let lostLocal=false;
+  if(cloudAt!==undefined){
+    // Жива вкладка, а в localStorage — незбережене іншої вкладки цього
+    // пристрою (там збереження не дійшло, вкладку закрили), зроблене від
+    // ПОТОЧНОЇ версії хмари й новіше за все. Підхоплюємо й заливаємо: інакше
+    // наступне збереження цієї вкладки затерло б його й на пристрої.
+    if(live&&stored&&stored._base===cloudAt&&(+stored._ts||0)>Math.max(localTs,cloudTs)){
+      console.log('[Load] підхоплюю незбережене іншої вкладки');
+      state.players[userId]=Object.assign({},state.players[userId],stored);
+      state.players[userId]._base=cloudAt;
+      await saveToCloud(userId);
+      return;
+    }
+    if(local&&local._base===cloudAt&&localTs>cloudTs){
+      console.log('[Load] незбережені зміни цього пристрою, хмара не мінялась — заливаю');
+      state.players[userId]._base=cloudAt;
+      await saveToCloud(userId);
+      return;
+    }
+    lostLocal=!!(local&&local._base!==undefined&&local._base!==cloudAt&&localTs>cloudTs);
+  }else if(localTs&&cloudTs&&localTs>cloudTs){
+    // Старий бекенд, версій немає. Локальне новіше — лишаємо його й одразу
+    // лікуємо розбіжність у хмарі.
     console.log('[Load] локальний сейв новіший за хмарний, заливаю нагору',localTs,'>',cloudTs);
     await saveToCloud(userId);
     return;
   }
   state.players[userId]=Object.assign({},state.players[userId],r.state);
   mergeCovers(state.players[userId],r.covers,r.revs);
+  if(cloudAt!==undefined)state.players[userId]._base=cloudAt;
+  if(lostLocal)showToast('Дані оновились з іншого пристрою — останні зміни тут не збереглись');
   // Обої: хмара могла принести і свій d.wall, і свій список показаних.
   // enterGame() працював з локальною копією, тому застосовуємо ще раз.
   const _wd=state.players[userId];
@@ -2921,6 +2977,17 @@ function enterGame(){
 }
 
 let _cloudSync=null;   // проміс bootSync, поки хмарний сейв ще не приїхав
+const _saveAfterSync={};   // pid → збереження, відкладене до кінця звірки
+function startCloudSync(){
+  _cloudSync=bootSync().catch(()=>{}).finally(()=>{
+    _cloudSync=null;
+    Object.keys(_saveAfterSync).forEach(pid=>{
+      delete _saveAfterSync[pid];
+      if(me&&!me.guest&&me.userId===pid)saveToCloud(pid);
+    });
+  });
+  return _cloudSync;
+}
 // Пам'ять звірена з хмарою: сейв приїхав або наше збереження дійшло. Доки
 // ні — пам'ять може бути старою, і зліпок для друзів та квести (вони
 // зберігаються самі) від неї не рахуються.
@@ -2933,7 +3000,12 @@ async function bootSync(){
   // Сейв просимо ТИМ САМИМ рейсом: раніше старт чекав `session`, а вже потім
   // `load`, і на холодному Apps Script це були два очікування замість одного.
   // Старий бекенд прапорця не знає й сейву не поверне — тоді ходимо окремо.
-  const r=await _api({action:'session',userId:me.userId,token:me.token,withState:1});
+  const seq0=_saveSeq;   // див. loadStateFor: відповідь, старша за наше збереження
+  const uid=me.userId;
+  const r=await _api({action:'session',userId:uid,token:me.token,withState:1});
+  // Поки відповідь їхала, гравець вийшов або увійшов інший: ця відповідь
+  // про попереднього, її не можна класти ні в чий сейв.
+  if(!me||me.userId!==uid)return;
   if(r&&r.error==='auth'){
     localStorage.removeItem(LS_SESSION);
     me=null;showLogin();
@@ -2945,7 +3017,10 @@ async function bootSync(){
   lsSet(LS_SESSION,me);
   const before=JSON.stringify(state.players[me.userId]||{});
   const pre=r.state!==undefined||r.stateError
-    ?{ok:true,state:r.state,covers:r.covers,error:r.stateError}:null;
+    // revs теж: без них хмарні книги (у них відгуків немає — ті лежать
+    // окремо) лягали в пам'ять без відгуків, і наступне збереження стирало
+    // відгуки в таблиці.
+    ?{ok:true,state:r.state,covers:r.covers,revs:r.revs,savedAt:r.savedAt,error:r.stateError,seq:seq0}:null;
   await loadStateFor(me.userId,true,pre);
   if(JSON.stringify(state.players[me.userId]||{})===before)return;
   // Хмара принесла інше (грали з іншого пристрою) — перемальовуємо видиме.
@@ -2981,7 +3056,7 @@ async function boot(){
     // старою (грали з іншого). Зліпок для друзів і друзі (квести, а з ними й
     // збереження) чекають на хмару: інакше старий зліпок затирав запрошення,
     // створене на іншому пристрої, і друг його не отримував.
-    _cloudSync=bootSync().catch(()=>{}).finally(()=>{_cloudSync=null;});
+    startCloudSync();
     enterGame();
     return;
   }
@@ -3226,7 +3301,7 @@ async function pushPublic(){
   if(_cloudSync)await _cloudSync;      // див. boot(): не викладати стару копію
   if(!me||me.guest||!me.token||!cur||!_cloudOk)return;
   try{
-    await _api({action:'pubSet',userId:me.userId,token:me.token,
+    await _api({action:'pubSet',userId:me.userId,token:me.token,base:state.players[cur]._base||'',
                 pub:JSON.stringify(buildPublicSummary(state.players[cur]))});
   }catch(e){console.warn('[pub] не вдалося оновити зліпок',e);}
 }
@@ -6108,7 +6183,7 @@ let _pubWarned=0,_saveWarnTs=0;
 // налаштуваннях бібліотеки перестають заливати всю бібліотеку тричі.
 const _saveBusy={};    // pid → проміс рейсу, що зараз у дорозі
 const _saveAgain={};   // pid → поки рейс ішов, просили зберегти ще раз
-async function saveToCloud(pid){
+async function saveToCloud(pid,force){
   if(!pid)return;
   // Мітка часу збереження — по ній loadStateFor вирішує, чия копія новіша.
   if(state.players[pid])state.players[pid]._ts=Date.now();
@@ -6116,43 +6191,135 @@ async function saveToCloud(pid){
   saveLocal('rpg_state_'+pid,stateJson);
   // Гість у хмару не пишеться взагалі — його на сервері не існує.
   if(!me||me.guest||!me.token||!SCRIPT_URL)return;
+  // Хмару ще підтягуємо (старт, розгортання): пам'ять може бути старою.
+  // Зміна лежить на пристрої, а в хмару піде одразу після звірки — тоді
+  // loadStateFor уже знає, чи хмара мінялась (див. startCloudSync).
+  // force — гру згортають: телефон може її вбити, тож шлемо одразу; звірку
+  // версії однаково робить сервер.
+  if(_cloudSync&&!force){_saveAfterSync[pid]=1;return;}
   // Уже їдемо — досить позначити, що дані змінились після відправки.
   if(_saveBusy[pid]){_saveAgain[pid]=1;return _saveBusy[pid];}
+  // finally, а не then: виняток усередині рейсу (вихід із гри посеред нього,
+  // помилка малювання) лишав `_saveBusy` назавжди, і вкладка більше ніколи
+  // не писала в хмару.
   const run=(async()=>{
-    do{_saveAgain[pid]=0;await _pushSave(pid);}while(_saveAgain[pid]);
-  })().then(()=>{delete _saveBusy[pid];delete _saveAgain[pid];});
+    try{do{_saveAgain[pid]=0;await _pushSave(pid);}while(_saveAgain[pid]);}
+    catch(e){console.error('[Save]',e);}
+  })().finally(()=>{delete _saveBusy[pid];delete _saveAgain[pid];});
   _saveBusy[pid]=run;
   return run;
+}
+// Лічильник збережень, що дійшли: loadStateFor по ньому бачить, що відповідь
+// хмари старша за наше власне збереження.
+let _saveSeq=0;
+const _sentTs={};         // pid → `_ts` відправлених рейсів, на які відповідь не прийшла
+// Збереження не дійшло (зв'язок, сервер зайнятий) — повторюємо само, з
+// наростаючою паузою. Раніше зміни чекали наступної дії, а тим часом інший
+// пристрій міг зберегтися, і вони пропадали.
+let SAVE_RETRY_MS=20000;
+const _saveRetry={};      // pid → {t: таймер, n: скільки разів поспіль}
+function _scheduleSaveRetry(pid){
+  const r=_saveRetry[pid]||(_saveRetry[pid]={t:0,n:0});
+  if(r.t)return;
+  const wait=Math.min(SAVE_RETRY_MS*Math.pow(2,r.n),300000);
+  r.n++;
+  r.t=setTimeout(()=>{r.t=0;if(me&&!me.guest&&me.userId===pid)saveToCloud(pid);},wait);
 }
 // Останні відгуки, які реально доїхали на сервер — по гравцю. Поки вони не
 // змінились, поле `revs` у рейс не кладемо ВЗАГАЛІ: бекенд тоді переносить
 // збережене як є. Через це звичайне збереження (спіймав, додав книгу) важить
 // стільки ж, скільки важило, хоч би скільки було написано відгуків.
 const _revsSent={};
+// Пам'ять застаріла — замінюємо її хмарним сейвом цілком і малюємо заново.
+// Відкриті попапи закриваємо: вони могли показувати книгу за старим номером.
+async function _takeCloud(pid){
+  if(!me||me.userId!==pid)return;
+  const r=await _api({action:'load',userId:pid,token:me.token});
+  if(!me||me.userId!==pid)return;
+  if(!(r&&r.ok&&r.state)){
+    // Хмарний сейв пошкоджений, версію віддали: своя копія — найкраще, що є,
+    // шлемо її ще раз від цієї версії, і клітинка лікується.
+    if(r&&r.error&&r.savedAt!==undefined&&state.players[pid]){
+      state.players[pid]._base=r.savedAt;_saveAgain[pid]=1;return;
+    }
+    showSaveStatus('error');return;
+  }
+  // Хмара — це НАШЕ останнє збереження: сервер записав, а відповідь до нас не
+  // дійшла (таймаут). Пам'ять не старша за хмару, а новіша — нічого не
+  // відкидаємо, лише беремо версію й шлемо пам'ять ще раз.
+  if((_sentTs[pid]||[]).indexOf(+r.state._ts)>=0&&state.players[pid]){
+    _sentTs[pid]=[];
+    state.players[pid]._base=r.savedAt||'';
+    _saveAgain[pid]=1;
+    return;
+  }
+  delete state.players[pid];
+  initState(pid);
+  state.players[pid]=Object.assign(state.players[pid],r.state);
+  mergeCovers(state.players[pid],r.covers,r.revs);
+  const d=state.players[pid];
+  if(!d.wallsSeen)d.wallsSeen=unlockedWallIds(d);
+  migrateBookDates(d);
+  d._base=r.savedAt||'';
+  saveLocal('rpg_state_'+pid,JSON.stringify(d));
+  _saveAgain[pid]=0;                     // те, що чекало, рахувалось від старого
+  _saveSeq++;
+  if(me&&pid===me.userId)_cloudOk=true;
+  showSaveStatus('saved');
+  if(pid!==cur)return;
+  // Знімаємо відкриті попапи напряму, а не closeModal: той відкривав би
+  // наступний із черги (наприклад «Квест пройдено»), і цикл одразу його
+  // закривав. Черга відкриється після перемальовування.
+  document.querySelectorAll('#mOv').forEach(m=>m.remove());
+  mOpen=false;
+  applyTheme(curTheme());applyWall();
+  renderMain();setMainTab(_mainTab||'map');
+  showToast('Дані оновились з іншого пристрою — повтори останню дію');
+  nextM();
+}
 async function _pushSave(pid){
+  // Гравець вийшов або змінився, поки рейс чекав: чужу пам'ять під іншим
+  // userId не шлемо.
+  if(!me||me.guest||me.userId!==pid||!state.players[pid])return;
   showSaveStatus('saving');
+  (_sentTs[pid]=(_sentTs[pid]||[]).slice(-19)).push(+state.players[pid]._ts||0);
   const split=splitCovers(state.players[pid]);
   const revsStr=JSON.stringify(split.revs);
   const revsChanged=_revsSent[pid]!==revsStr;
   // POST (not GET+JSONP) — a big library of books would otherwise blow past the
   // URL-length limit on a GET request and silently fail to save anything at all.
   const payload={action:'save',userId:me.userId,token:me.token,
+                 base:state.players[pid]._base||'',   // від якої версії хмари ця пам'ять
                  state:JSON.stringify(split.slim),
                  covers:JSON.stringify(split.covers),
                  pub:JSON.stringify(buildPublicSummary(state.players[pid]))};
   if(revsChanged)payload.revs=revsStr;
   const r=await _api(payload);
+  if(!me||me.userId!==pid)return;
   if(r&&r.ok){
+    _saveSeq++;
+    _sentTs[pid]=[];                       // усе відправлене підтверджено цим рейсом
+    if(_saveRetry[pid])_saveRetry[pid].n=0;
     // Позначаємо доїханим ЛИШЕ після успіху — інакше провалений рейс назавжди
     // переконав би нас, що відгуки на сервері вже є.
     if(revsChanged)_revsSent[pid]=revsStr;
     if(me&&pid===me.userId)_cloudOk=true;   // у хмарі тепер саме те, що в пам'яті
+    // Нова версія хмари — наступне збереження йде вже від неї.
+    if(r.savedAt!==undefined&&state.players[pid]){
+      state.players[pid]._base=r.savedAt;
+      saveLocal('rpg_state_'+pid,JSON.stringify(state.players[pid]));
+    }
     showSaveStatus('saved');
     // Зліпок для друзів не влазив у стовпчик: друзі бачили б застиглі числа.
     if(r.pubSkipped&&!_pubWarned){_pubWarned=1;showToast('Дані для друзів завеликі — напиши мені');}
     return;
   }
+  // У хмарі новіше (зберігся інший пристрій чи вкладка): сервер цю копію не
+  // прийняв. Забираємо свіже — і кажемо, бо остання дія тут не збереглась.
+  // Відмова — сервер цей рейс точно не записав, тож його мітку не тримаємо.
+  if(r&&r.error==='stale'){_sentTs[pid].pop();await _takeCloud(pid);return;}
   showSaveStatus('error');
+  if(!(r&&r.error==='auth'))_scheduleSaveRetry(pid);
   if(r&&r.error==='auth')showToast('Сесія закінчилась — увійди знову');
   // Причину провалу видно лише тут: без цього ⚠️ нічого не пояснює.
   else if(r&&r.error&&r.error!=='network'&&Date.now()-_saveWarnTs>60000){
@@ -6199,6 +6366,17 @@ boot();
 window.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='hidden'&&cur)
     saveLocal('rpg_state_'+cur,JSON.stringify(state.players[cur]));
+  // Зміна, відкладена до кінця звірки, не має чекати: згорнуту гру телефон
+  // може закрити, і зміна лишилась би тільки на пристрої.
+  if(document.visibilityState==='hidden'&&cur&&_saveAfterSync[cur]){
+    delete _saveAfterSync[cur];
+    saveToCloud(cur,true);
+  }
+  // Те саме для збереження, що чекає на повтор після збою.
+  else if(document.visibilityState==='hidden'&&cur&&_saveRetry[cur]&&_saveRetry[cur].t){
+    clearTimeout(_saveRetry[cur].t);_saveRetry[cur].t=0;
+    saveToCloud(cur,true);
+  }
   if(document.visibilityState==='visible')refreshFriendsIfStale();
 });
 // Друзі (а з ними запрошення в квест і ❤️) раніше підтягувались лише на вході
@@ -6214,7 +6392,7 @@ function refreshFriendsIfStale(){
   if(Date.now()-_frLoadedAt<FR_STALE_MS)return;
   if(!_cloudSync){
     _cloudOk=false;
-    _cloudSync=bootSync().catch(()=>{}).finally(()=>{_cloudSync=null;});
+    startCloudSync();
   }
   // Свій зліпок теж перевикладаємо: його могла затерти стара вкладка зі
   // старим кодом, і друг бачив би мої квести зниклими.
