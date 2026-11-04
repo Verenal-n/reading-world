@@ -3726,10 +3726,12 @@ function questsTick(){
     if(q.st==='dec'&&q.by!=='me'&&age>Q_DEC_MS)return false;
     if(q.st==='dec'&&q.by==='me'&&age>Q_SEEN_MS&&!(t&&t.st==='inv'&&age<Q_DECID_MS))return false;
     if(q.st==='done'&&age>Q_SEEN_MS)return false;
-    // Активний квест, у якого в друга запису немає: друг скасував запрошення
-    // в ту саму мить, коли я його прийняла, або прийняв моє зустрічне. Другого
-    // боку не буде — без цього квест висів би сам 30 днів. Тихо, як і строк.
-    if(q.st==='act'&&_frState==='ok'&&friend&&!t)return false;
+    // Активний квест НІКОЛИ не знімається через те, що в зліпку друга його
+    // немає. Таке правило було (27.10) і забирало квест в обох: зліпок друга
+    // раз прийшов без квесту (стара вкладка), квест зник у мене, мій зліпок
+    // пішов без нього — і за тим самим правилом зник у друга. Активний квест
+    // закінчується лише строком або закриттям. Обидва боки відновлюють один
+    // одного (див. нижче), а не видаляють.
     // Друг скасував квест або його запис уже згорів — тримати сповіщення
     // «він відхилив» нема сенсу, воно вже ні про що.
     if(q.st==='dec'&&q.by!=='me'&&_frState==='ok'&&!t)return false;
@@ -3745,6 +3747,26 @@ function questsTick(){
     }
     return true;
   });
+  // Відновлення з боку друга. У друга активний квест зі мною, а в мене його
+  // немає: мій сейв його втратив (сейв між пристроями не зливається —
+  // перемагає той пристрій, що зберігся пізніше). Повертаємо той самий квест:
+  // той самий id, жанр і старт, тож уже прочитана книга зарахується.
+  // Не повертаємо: прострочений, уже пройдений (є на дошці) і другий квест
+  // з тим самим другом.
+  if(_frState==='ok'&&me){
+    const board={};(d.questsDone||[]).forEach(r=>{if(r&&r.id)board[r.id]=1;});
+    (friendsData.friends||[]).forEach(f=>{
+      if(!Array.isArray(f.q))return;
+      f.q.forEach(x=>{
+        if(!x||x.st!=='act'||String(x.w)!==String(me.userId))return;
+        const ts0=+x.ts0||0;
+        if(!ts0||Date.now()-ts0>Q_MS||board[x.id])return;
+        if(d.quests.some(q=>q.id===x.id||(String(q.with)===String(f.userId)&&q.st==='act')))return;
+        d.quests.push({id:x.id,with:String(f.userId),withNick:f.nick||'друг',g:String(x.g),
+                       ts0:ts0,tsUp:Date.now(),st:'act'});
+      });
+    });
+  }
   // Те саме для дошки пройдених: там нік теж лежить знімком.
   const boardBefore=JSON.stringify(d.questsDone||[]);
   (d.questsDone||[]).forEach(r=>{
@@ -6194,6 +6216,9 @@ function refreshFriendsIfStale(){
     _cloudOk=false;
     _cloudSync=bootSync().catch(()=>{}).finally(()=>{_cloudSync=null;});
   }
+  // Свій зліпок теж перевикладаємо: його могла затерти стара вкладка зі
+  // старим кодом, і друг бачив би мої квести зниклими.
+  pushPublic();
   loadFriends(true);
 }
 setInterval(()=>{
