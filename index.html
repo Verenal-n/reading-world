@@ -243,6 +243,9 @@ a.wrap-book-card{color:inherit;text-decoration:none;}
 a.q-bk,a.q-gr{text-decoration:none;}
 a.q-gr{color:inherit;}
 /* дошка пройдених: обкладинки ОБОХ книг поруч */
+.q-board-toggle{display:flex;width:100%;min-height:40px;justify-content:space-between;align-items:center;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;text-align:left;}
+.q-board-chev{font-size:13px;color:var(--accent);}
+.q-board-chips{padding-top:2px;}
 .q-board{background:rgba(var(--tl-rgb),.06);border:1px solid rgba(var(--tl-rgb),.24);border-radius:14px;padding:10px 11px;margin-bottom:8px;}
 .q-board-hdr{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px;}
 .q-board-g{font-size:12.5px;font-weight:700;color:var(--txt-hi);}
@@ -2826,9 +2829,12 @@ async function submitRegister(){
   finishGuest(g);
 }
 
+// Вхід у гру в цьому вікні — гра тут (див. «одна вкладка на пристрої»): без
+// цього вікно, що не зберігає, грало б, нічого не записуючи.
 async function finishReader(r){
   me={userId:r.userId,nick:r.nick,role:r.role||'reader',token:r.token,guest:false};
   lsSet(LS_SESSION,me);
+  claimLead();
   await loadStateFor(me.userId,true);
   enterGame();
 }
@@ -2836,6 +2842,7 @@ async function finishReader(r){
 function finishGuest(g){
   me={userId:g.userId,nick:g.nick,role:'guest',token:null,guest:true};
   lsSet(LS_SESSION,me);
+  claimLead();
   loadStateFor(me.userId,false);
   enterGame();
 }
@@ -2856,17 +2863,19 @@ async function loadStateFor(userId,tryCloud,pre){
   initState(userId);
   const stored=lsGet('rpg_state_'+userId,null);
   if(stored&&!live)state.players[userId]=Object.assign({},state.players[userId],stored);
-  const local=live?state.players[userId]:stored;
+  let local=live?state.players[userId]:stored;
   // Переносимо старий формат дати ДО всього іншого — і локальну копію, і
   // хмарну, бо новішою може виявитись будь-яка з них.
   let mig=migrateBookDates(state.players[userId]);
   const keepLocal=()=>{
-    if(mig)saveLocal('rpg_state_'+userId,JSON.stringify(state.players[userId]));
+    if(mig)saveMine(userId);
   };
   if(!(tryCloud&&me&&me.token)){keepLocal();return;}
   const seq0=(pre&&pre.seq!==undefined)?pre.seq:_saveSeq;
+  const ep0=(pre&&pre.ep!==undefined)?pre.ep:_epoch;
   const r=pre||await _api({action:'load',userId:userId,token:me.token});
   if(!me||me.userId!==userId)return;   // поки чекали, увійшов інший гравець
+  if(ep0!==_epoch||!amLeader())return; // або гру забрала інша вкладка
   // Поки відповідь їхала, наше власне збереження дійшло (або ще в дорозі):
   // сервер прочитав сейв РАНІШЕ за нього, і ця відповідь старша за пам'ять.
   // Застосувати її — означало б відкотити щойно додане. Збереження саме
@@ -2882,6 +2891,13 @@ async function loadStateFor(userId,tryCloud,pre){
   // Хмарний сейв пошкоджений, але версію сервер віддав: лишаємось на своїй
   // копії, і наступне збереження пройде звірку й полікує клітинку.
   if(r&&r.error&&r.savedAt!==undefined&&state.players[userId])state.players[userId]._base=r.savedAt;
+  // Хмара порожня (перший вхід, сейву ще не було): спільна версія — «нічого»,
+  // а відбиток — стартовий стан цього пристрою. Без нього злиття не знало б,
+  // що змінив цей пристрій, а що — інший, і губило б, наприклад, ціль.
+  if(r&&r.ok&&r.savedAt!==undefined&&!(r.state&&Object.keys(r.state).length)&&state.players[userId]){
+    const d0=state.players[userId];
+    if(d0._base===undefined){d0._base=r.savedAt;d0._baseH=_baseOf(d0);}
+  }
   if(!(r&&r.ok&&r.state&&Object.keys(r.state).length>0)){keepLocal();return;}
   // Порівнюємо і зі знімком ДО запиту, і з тим, що в пам'яті ЗАРАЗ: поки
   // хмарний сейв їхав, людина могла додати книгу, і ця книга новіша за все.
@@ -2896,26 +2912,61 @@ async function loadStateFor(userId,tryCloud,pre){
   // вкладка пише свою пам'ять у localStorage). Її мітці часу не віримо:
   // перемагає хмара, інакше стара пам'ять залилась би поверх усього.
   const cloudAt=r.savedAt;
-  let lostLocal=false;
   if(cloudAt!==undefined){
-    // Жива вкладка, а в localStorage — незбережене іншої вкладки цього
-    // пристрою (там збереження не дійшло, вкладку закрили), зроблене від
-    // ПОТОЧНОЇ версії хмари й новіше за все. Підхоплюємо й заливаємо: інакше
-    // наступне збереження цієї вкладки затерло б його й на пристрої.
-    if(live&&stored&&stored._base===cloudAt&&(+stored._ts||0)>Math.max(localTs,cloudTs)){
-      console.log('[Load] підхоплюю незбережене іншої вкладки');
-      state.players[userId]=Object.assign({},state.players[userId],stored);
-      state.players[userId]._base=cloudAt;
-      await saveToCloud(userId);
+    const C=_clone(r.state);
+    delete C._jrAdded;delete C._unacked;delete C._tab;   // службові поля — лише свої
+    mergeCovers(C,r.covers,r.revs);
+    migrateBookDates(C);
+    // Хмара — наш власний запис: відповідь на нього не дійшла (перезавантажили,
+    // перейшли в іншу вкладку, таймаут). Те саме правило, що в `_takeCloud`:
+    // пам'ять не старша за хмару — беремо версію й відбиток, шлемо пам'ять.
+    // Злиття тут порахувало б зміни того запису вдруге.
+    const own=local&&_ownInCloud(local,r.state);
+    if(own&&_uTs(own)===+r.state._ts){
+      console.log('[Load] у хмарі — наш власний запис, відповідь на який не дійшла');
+      const d=state.players[userId];
+      d._unacked=(local._unacked||[]).filter(x=>_uTs(x)>+r.state._ts);
+      d._base=cloudAt;
+      d._baseH=_baseOf(r.state);
+      d._wrote=r.state._wrote;
+      saveMine(userId);
+      if(!_sameSave(d,C))await saveToCloud(userId);
       return;
     }
-    if(local&&local._base===cloudAt&&localTs>cloudTs){
+    // наш запис лежить під чужим — зливатимемо від нього
+    if(own){console.log('[Load] наш запис у хмарі під чужим — зливаю від нього');_rebaseOnOwn(local,own);}
+    // Копія стоїть на тій самій версії, що й хмара: усе, чим вона
+    // відрізняється, — її незбережені зміни. Вирішуємо за змістом, а не за
+    // міткою часу: годинник іншого пристрою міг спішити, і зміна загубилась би.
+    if(local&&local._base===cloudAt&&!_sameSave(local,C)){
       console.log('[Load] незбережені зміни цього пристрою, хмара не мінялась — заливаю');
       state.players[userId]._base=cloudAt;
       await saveToCloud(userId);
       return;
     }
-    lostLocal=!!(local&&local._base!==undefined&&local._base!==cloudAt&&localTs>cloudTs);
+    // Хмара мінялась від тієї версії, з якої пішла ця копія (або копія без
+    // версії — зі старого коду): ЗЛИВАЄМО, а не викидаємо копію. Те, що є
+    // лише тут (книга, покемон, квест), іде в хмару.
+    let up=false,next=C;
+    if(local&&local._base!==cloudAt){
+      next=_mergeSaves(local,C);
+      up=!_sameSave(next,C);
+      if(up)console.log('[Load] зливаю копію пристрою з хмарною');
+    }
+    state.players[userId]=Object.assign({},state.players[userId],next);
+    const d=state.players[userId];
+    d._base=cloudAt;
+    d._baseH=_baseOf(r.state);
+    if(local&&local!==d)d._unacked=local._unacked;   // уже без записів, що є в хмарі
+    if(journalRestore(userId,d))up=true;
+    journalNote(userId,d);
+    journalConfirm(userId,C.books);        // ці книги хмара має
+    if(up)d._ts=Date.now();
+    if(!d.wallsSeen)d.wallsSeen=unlockedWallIds(d);
+    if(userId===cur)applyWall();
+    saveMine(userId);
+    if(up||mig)saveToCloud(userId);
+    return;
   }else if(localTs&&cloudTs&&localTs>cloudTs){
     // Старий бекенд, версій немає. Локальне новіше — лишаємо його й одразу
     // лікуємо розбіжність у хмарі.
@@ -2925,15 +2976,17 @@ async function loadStateFor(userId,tryCloud,pre){
   }
   state.players[userId]=Object.assign({},state.players[userId],r.state);
   mergeCovers(state.players[userId],r.covers,r.revs);
-  if(cloudAt!==undefined)state.players[userId]._base=cloudAt;
-  if(lostLocal)showToast('Дані оновились з іншого пристрою — останні зміни тут не збереглись');
+  // Старий бекенд: журнал пристрою однаково не дає книзі зникнути.
+  if(journalRestore(userId,state.players[userId]))mig=true;
+  journalNote(userId,state.players[userId]);
+  journalConfirm(userId,state.players[userId].books);
   // Обої: хмара могла принести і свій d.wall, і свій список показаних.
   // enterGame() працював з локальною копією, тому застосовуємо ще раз.
   const _wd=state.players[userId];
   if(!_wd.wallsSeen)_wd.wallsSeen=unlockedWallIds(_wd);
   if(userId===cur)applyWall();
   if(migrateBookDates(state.players[userId]))mig=true;
-  saveLocal('rpg_state_'+userId,JSON.stringify(state.players[userId]));
+  saveMine(userId);
   // Перенесене треба один раз відправити нагору, інакше в хмарі `date`
   // лежатиме вічно й місце не звільниться. БЕЗ await: інакше вхід у гру
   // чекає ще один запит до сервера (це й були ті «довго завантажується»).
@@ -2976,6 +3029,53 @@ function enterGame(){
   checkGoalEvents();
 }
 
+// ── одна вкладка на пристрої ──
+// localStorage спільний для всіх вкладок. Коли зберігали дві вкладки, їхні
+// незбережені зміни розходились, а зливання на одному пристрої давало то
+// подвійні монети, то загублені дії. Тому зберігає лише ОДНА вкладка — та,
+// на яку дивляться (`rw_lead`). Інша показує «Гра відкрита в іншій вкладці»
+// й нічого не пише; коли її відкривають, вона забирає гру собі й піднімає
+// копію з пристрою (її писала вкладка, що зберігала) та хмару. Відправлене,
+// на яке відповідь не прийшла, лежить у самій копії (`_unacked`), тож
+// переживає і передачу вкладці, і перезавантаження.
+const TAB_ID='t'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const LEAD_KEY='rw_lead';
+let _epoch=0;            // змінилась — відповіді старих рейсів цієї вкладки вже не застосовуються
+function amLeader(){try{const l=localStorage.getItem(LEAD_KEY);return !l||l===TAB_ID;}catch(e){return true;}}
+function claimLead(){try{localStorage.setItem(LEAD_KEY,TAB_ID);}catch(e){}_epoch++;hidePassive();}
+function saveMine(uid){
+  const d=state.players[uid];if(!d||!amLeader())return;
+  d._tab=TAB_ID;saveLocal('rpg_state_'+uid,JSON.stringify(d));
+}
+function showPassive(){
+  if(document.getElementById('passive-ov'))return;
+  document.body.insertAdjacentHTML('beforeend',`<div id="passive-ov" class="modal-ov" style="z-index:900">
+    <div class="modal-box" style="text-align:center"><div class="m-emoji">📖</div>
+      <div class="m-title">Гра відкрита в іншій вкладці</div>
+      <div class="m-btns" style="margin-top:16px"><button class="btn-ok" onclick="takeOverTab()">Грати тут</button></div></div></div>`);
+}
+function hidePassive(){const e=document.getElementById('passive-ov');if(e)e.remove();}
+// Інша вкладка забрала гру: ця більше нічого не пише й не шле.
+function becomePassive(){
+  _epoch++;
+  Object.keys(_saveRetry).forEach(k=>{if(_saveRetry[k].t){clearTimeout(_saveRetry[k].t);_saveRetry[k].t=0;}});
+  if(cur)showPassive();
+}
+window.addEventListener('storage',e=>{if(e.key===LEAD_KEY&&e.newValue&&e.newValue!==TAB_ID)becomePassive();});
+// Забрати гру в цю вкладку: її пам'ять могла застаріти, тож піднімаємо копію
+// з пристрою, а далі — звичайна звірка з хмарою.
+async function takeOverTab(){
+  claimLead();
+  if(!me||!cur)return;
+  const uid=me.userId,keepCur=cur;
+  delete state.players[uid];
+  cur=null;                    // для loadStateFor вкладка не «жива»: копію з пристрою вливаємо
+  await loadStateFor(uid,false);
+  cur=keepCur;
+  document.querySelectorAll('#mOv').forEach(m=>m.remove());mOpen=false;
+  applyTheme(curTheme());applyWall();renderMain();setMainTab(_mainTab||'map');
+  if(!me.guest&&me.token){_cloudOk=false;startCloudSync();pushPublic();loadFriends(true);}
+}
 let _cloudSync=null;   // проміс bootSync, поки хмарний сейв ще не приїхав
 const _saveAfterSync={};   // pid → збереження, відкладене до кінця звірки
 function startCloudSync(){
@@ -3001,6 +3101,7 @@ async function bootSync(){
   // `load`, і на холодному Apps Script це були два очікування замість одного.
   // Старий бекенд прапорця не знає й сейву не поверне — тоді ходимо окремо.
   const seq0=_saveSeq;   // див. loadStateFor: відповідь, старша за наше збереження
+  const ep0=_epoch;      // і відповідь, що прийшла вже після передачі гри іншій вкладці
   const uid=me.userId;
   const r=await _api({action:'session',userId:uid,token:me.token,withState:1});
   // Поки відповідь їхала, гравець вийшов або увійшов інший: ця відповідь
@@ -3020,7 +3121,7 @@ async function bootSync(){
     // revs теж: без них хмарні книги (у них відгуків немає — ті лежать
     // окремо) лягали в пам'ять без відгуків, і наступне збереження стирало
     // відгуки в таблиці.
-    ?{ok:true,state:r.state,covers:r.covers,revs:r.revs,savedAt:r.savedAt,error:r.stateError,seq:seq0}:null;
+    ?{ok:true,state:r.state,covers:r.covers,revs:r.revs,savedAt:r.savedAt,error:r.stateError,seq:seq0,ep:ep0}:null;
   await loadStateFor(me.userId,true,pre);
   if(JSON.stringify(state.players[me.userId]||{})===before)return;
   // Хмара принесла інше (грали з іншого пристрою) — перемальовуємо видиме.
@@ -3776,7 +3877,7 @@ function questsTick(){
   const d=pd();if(!d)return false;
   const before=JSON.stringify(d.quests||[]);
   const m=qMatchAll(d);
-  d.quests=(d.quests||[]).filter(q=>{
+  const keep=q=>{
     if(!q||!q.id||!q.with)return false;
     const friend=(friendsData.friends||[]).some(x=>String(x.userId)===String(q.with));
     if(_frState==='ok'&&!friend)return false;
@@ -3821,7 +3922,10 @@ function questsTick(){
       return true;
     }
     return true;
-  });
+  };
+  // Прибране тут (строк, друг зник) записуємо, щоб злиття з іншою копією не
+  // повернуло його: прострочене запрошення знову поїхало б другові.
+  d.quests=(d.quests||[]).filter(q=>{const k=keep(q);if(!k&&q&&q.id)questGone(d,q.id);return k;});
   // Відновлення з боку друга. У друга активний квест зі мною, а в мене його
   // немає: мій сейв його втратив (сейв між пристроями не зливається —
   // перемагає той пристрій, що зберігся пізніше). Повертаємо той самий квест:
@@ -3839,6 +3943,11 @@ function questsTick(){
         if(d.quests.some(q=>q.id===x.id||(String(q.with)===String(f.userId)&&q.st==='act')))return;
         d.quests.push({id:x.id,with:String(f.userId),withNick:f.nick||'друг',g:String(x.g),
                        ts0:ts0,tsUp:Date.now(),st:'act'});
+        // Повернуто ПІСЛЯ можливого прибирання: інакше злиття з іншою моєю
+        // копією, що пам'ятає прибирання, знову викинуло б квест.
+        const bk=d.questsBack=d.questsBack||{};
+        bk[x.id]=Math.max(Date.now(),(+((d.questsGone||{})[x.id])||0)+1);
+        Object.keys(bk).forEach(k=>{if(Date.now()-(+bk[k]||0)>2*Q_MS)delete bk[k];});
       });
     });
   }
@@ -3969,6 +4078,7 @@ function acceptQuest(id){
   // Запрошення розминулись: я теж кликала цього друга. Моє зустрічне
   // знімаємо — один активний на друга.
   const d=pd();
+  (d.quests||[]).forEach(q=>{if(String(q.with)===inc.from&&q.st==='inv')questGone(d,q.id);});
   d.quests=(d.quests||[]).filter(q=>!(String(q.with)===inc.from&&q.st==='inv'));
   qList().push({id:inc.id,with:inc.from,withNick:inc.fromNick,g:inc.g,
                 ts0:Date.now(),tsUp:Date.now(),st:'act'});
@@ -3996,6 +4106,7 @@ function declineQuest(id,counter){
 // Це саме сповіщення: воно нічого не тримає й нікому більше не потрібне.
 function dismissQuestNote(id){
   const d=pd();if(!d)return;
+  questGone(d,id);
   d.quests=(d.quests||[]).filter(x=>!(x.id===id&&x.st==='dec'));
   saveToCloud(cur);
   renderFriendsTab();
@@ -4013,6 +4124,7 @@ function cancelInvite(id){
     return;
   }
   const d=pd();
+  questGone(d,id);
   d.quests=(d.quests||[]).filter(x=>x.id!==id);
   saveToCloud(cur);
   renderFriendsTab();
@@ -4058,10 +4170,38 @@ function _qTheirTitleHTML(b){
     ?`<a class="q-bk" href="${g}" target="_blank" rel="noopener noreferrer">${esc(b.t)}<span class="gr-mark">↗</span></a>`
     :`<span class="q-bk">${esc(b.t)}</span>`;
 }
+// Дошка росте з кожним квестом, тому згортається (стан пам'ятає пристрій) і
+// фільтрується за другом: «Усі» або один друг. Друг у onclick — номер у
+// списку `_qbFriends`, а не його id: чужий рядок в onclick не вставляємо.
+let _qbFriend='';         // userId вибраного друга; '' — усі
+let _qbFriends=[];
+function _qbOpen(){try{return localStorage.getItem('rw_qb_open')!=='0';}catch(e){return true;}}
+function toggleQBoard(){
+  try{localStorage.setItem('rw_qb_open',_qbOpen()?'0':'1');}catch(e){}
+  renderFriendsTab();
+}
+function setQBoardFriend(i){
+  _qbFriend=i<0?'':String(_qbFriends[i]||'');
+  renderFriendsTab();
+}
 function questsBoardHTML(){
-  const list=qDone().slice().sort((a,b)=>(+b.endedAt||0)-(+a.endedAt||0));
-  if(!list.length)return'';
-  return`<div class="fr-sub">🤝 Дошка пройдених квестів</div>`+
+  const all=qDone().slice().sort((a,b)=>(+b.endedAt||0)-(+a.endedAt||0));
+  if(!all.length)return'';
+  const open=_qbOpen();
+  const head=`<button class="fr-sub q-board-toggle" onclick="toggleQBoard()" aria-expanded="${open}">
+    <span>🤝 Дошка пройдених квестів · ${all.length}</span><span class="q-board-chev">${open?'▾':'▸'}</span></button>`;
+  if(!open)return head;
+  // друзі, з якими є пройдені квести, — за кількістю
+  const by={};all.forEach(r=>{const id=String(r.with||'');by[id]=(by[id]||0)+1;});
+  _qbFriends=Object.keys(by).sort((a,b)=>by[b]-by[a]);
+  if(_qbFriend&&!by[_qbFriend])_qbFriend='';
+  const nickOf=id=>qNick(all.find(r=>String(r.with)===id)||{});
+  const chips=_qbFriends.length>1?`<div class="jn-years q-board-chips">
+      <button class="jn-year ${_qbFriend?'':'act'}" onclick="setQBoardFriend(-1)">Усі · ${all.length}</button>
+      ${_qbFriends.map((id,i)=>`<button class="jn-year ${_qbFriend===id?'act':''}" onclick="setQBoardFriend(${i})">${esc(nickOf(id))} · ${by[id]}</button>`).join('')}
+    </div>`:'';
+  const list=_qbFriend?all.filter(r=>String(r.with)===_qbFriend):all;
+  return head+chips+
     list.map(r=>`<div class="q-board">
       <div class="q-board-hdr">
         <span class="q-board-g">${esc(r.g)}</span>
@@ -5837,7 +5977,10 @@ function openBookDetail(i,playerId){
   const [top,bot]=_bookColor(book);
   const cw=_coverW(book.pages||1),h=_bookH(book.pages||1);
   const heroStyle=book.coverUrl?`background-image:url('${book.coverUrl}')`:`background:linear-gradient(150deg,${top} 0%,${bot} 100%)`;
-  const coverBoxHtml=`<div id="bd-cover-box" style="width:${cw}px;height:${h}px;border-radius:6px;overflow:hidden;box-shadow:0 10px 24px rgba(var(--shadow),.45);${book.coverUrl?'':`background:linear-gradient(150deg,${top} 0%,${bot} 100%);`}">${book.coverUrl?`<img id="bd-cover-img" src="${book.coverUrl}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`:''}</div>`;
+  // Обкладинка — у СВОЇХ пропорціях: висота як у книги, ширина — від картинки.
+  // Раніше картинку вписували в рамку з шириною від кількості сторінок і
+  // обрізали краї. Без обкладинки — кольорова заглушка тієї самої рамки.
+  const coverBoxHtml=`<div id="bd-cover-box" data-w="${cw}" data-h="${h}" style="${_bdBoxStyle(book.coverUrl,cw,h,top,bot)}">${_bdCoverImg(book.coverUrl)}</div>`;
   const coverHtml=editable?`<div class="bd-cover-tap" onclick="toggleBdCoverEdit()">${coverBoxHtml}</div>`:coverBoxHtml;
   const coverEditForm=editable?`<div id="bd-cover-editform" style="display:none;margin-bottom:12px" onclick="event.stopPropagation()">
       <input type="url" id="bd-cover-input" class="finput" placeholder="https://…" style="font-size:11px;margin-bottom:6px" value="${book.coverUrl||''}" oninput="updBdCoverPreview()" onfocus="this.select()">
@@ -5913,7 +6056,28 @@ function toggleBdCoverEdit(){
 function updBdCoverPreview(){
   const url=(document.getElementById('bd-cover-input').value||'').trim();
   const box=document.getElementById('bd-cover-box');
-  box.innerHTML=url?`<img id="bd-cover-img" src="${url}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`:'';
+  box.innerHTML=_bdCoverImg(url);
+  box.style.width=url?'fit-content':(box.dataset.w||60)+'px';
+  box.style.height=url?'':(box.dataset.h||90)+'px';
+}
+function _bdBoxStyle(url,cw,h,top,bot){
+  return (url?'width:fit-content;line-height:0;':`width:${cw}px;height:${h}px;background:linear-gradient(150deg,${top} 0%,${bot} 100%);`)+
+    'border-radius:6px;overflow:hidden;margin:0 auto;box-shadow:0 10px 24px rgba(var(--shadow),.45);';
+}
+// Висота обкладинки — як у книги (`data-h` рамки), ширина — від картинки.
+// Задуже широку зменшуємо цілком, а не стискаємо вбік.
+function _bdFit(img){
+  const box=img.parentNode;const h=+(box.dataset.h||220);
+  const cap=Math.min(260,window.innerWidth*0.72);
+  const r=img.naturalWidth&&img.naturalHeight?img.naturalWidth/img.naturalHeight:0.66;
+  img.style.height=(h*r>cap?cap/r:h)+'px';
+}
+// Картинка не вантажиться — рамка повертає розмір заглушки, щоб не схлопнутись.
+function _bdCoverImg(url){
+  if(!url)return'';
+  return `<img id="bd-cover-img" src="${escUrl(url)||''}" style="display:block;width:auto;height:0"
+    onload="_bdFit(this)"
+    onerror="this.style.display='none';const b=this.parentNode;b.style.width=(b.dataset.w||60)+'px';b.style.height=(b.dataset.h||90)+'px'">`;
 }
 function confirmBdCoverEdit(){
   document.getElementById('bd-cover-editform').style.display='none';
@@ -5939,6 +6103,7 @@ function bdRevInput(el){
 }
 function saveBookDetail(i){
   const d=pd();const book=(d.books||[])[i];if(!book)return;
+  book.upd=Date.now();   // при злитті копій перемагає новіше відредагована книга
   const beforeAch=achSnapshot(d);
   const url=(document.getElementById('bd-cover-input').value||'').trim();
   const genre=document.getElementById('bd-genre').value||'';
@@ -5969,6 +6134,10 @@ function confirmDeleteBook(i){
     [{l:'Видалити',cb:()=>{
       closeModal();
       const coinsToRemove=book.coinsEarned??coinsForPages(book.pages);
+      // Видалення записуємо: інакше злиття з іншою копією чи журнал пристрою
+      // повернули б книгу як «загублену».
+      ensureBookIds(d);
+      (d.booksDel=d.booksDel||[]).push({id:book.id,at:Date.now()});
       d.bookPoints=(d.bookPoints||0)-1;
       d.coins=(d.coins||0)-coinsToRemove;
       d.booksRead=(d.booksRead||0)-1;
@@ -6029,7 +6198,7 @@ function submitPages(){
   d.booksRead=(d.booksRead||0)+1;
   d.coins=(d.coins||0)+coins;
   if(!d.books)d.books=[];
-  const book={title:cleanBookText(title),author:cleanBookText(author),pages,ts:Date.now(),coverUrl:cleanCoverUrl(coverUrl),coinsEarned:coins,format:_addBookFormat};
+  const book={id:newBookId(),title:cleanBookText(title),author:cleanBookText(author),pages,ts:Date.now(),coverUrl:cleanCoverUrl(coverUrl),coinsEarned:coins,format:_addBookFormat};
   if(_addBookRating)book.rating=_addBookRating;
   if(genre)book.genre=genre;
   if(lang&&LANG_META[lang])book.lang=lang;
@@ -6105,6 +6274,273 @@ function cleanReview(s){
   return revCut(String(s||'').replace(/[<>\\]/g,'').replace(/\r\n?/g,'\n').replace(/\n{3,}/g,'\n\n'),REV_MAX).trim();
 }
 function bookRev(b){return (b&&typeof b.rev==='string')?b.rev:'';}
+
+// ═══════════ ЦІЛІСТЬ СЕЙВУ: книга й покемон зникають лише видаленням ═══════════
+// Сейв живе на кількох пристроях і вкладках. Раніше при розбіжності одна
+// копія перемагала цілком, і прочитане на іншій зникало. Тепер три правила:
+//  1. У кожної книги свій постійний `id`; видалення записується в
+//     `booksDel` (ніхто, крім кнопки «Видалити», книгу не прибирає).
+//  2. Розійшлись копії — вони ЗЛИВАЮТЬСЯ (`_mergeSaves`), а не одна
+//     викидає іншу: книги, покемони, квести — об'єднуються; лічильники
+//     (монети, книги) складаються з різницею від спільної версії; решта
+//     полів — береться змінене.
+//  3. Журнал пристрою (`rw_jrnl_<id>`): усе, що цей пристрій бачив, лежить
+//     у нього окремо. Книга, якої немає в сейві й немає в `booksDel`,
+//     повертається з журналу перед кожним збереженням.
+// Сервер (`apps_script.gs`) додатково не приймає сейв, де книга, покемон чи
+// пройдений квест зникли без видалення.
+//
+// id старої книги (без id) рахується однаково тут і на сервері: 'L|' +
+// назва|автор, повтори тієї самої книги — '#2', '#3' за порядком.
+function ensureBookIds(d){
+  if(!d||!Array.isArray(d.books))return false;
+  const seen={};let changed=false;
+  d.books.forEach(b=>{
+    if(!b||typeof b!=='object'||b.id)return;
+    const base='L|'+reaxKey(b.title,b.author);
+    seen[base]=(seen[base]||0)+1;
+    b.id=seen[base]>1?base+'#'+seen[base]:base;
+    changed=true;
+  });
+  return changed;
+}
+function newBookId(){return 'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+// Чи однаковий зміст двох сейвів (службові поля `_…` не рахуються).
+// Ключі впорядковуються на ВСІХ рівнях: обкладинка й відгук, повернуті з
+// окремих стовпців, стають у кінець об'єкта книги, і без цього однакові
+// сейви здавались би різними — пристрій заливав би сейв при кожній звірці.
+function _canon(v){
+  if(Array.isArray(v))return '['+v.map(_canon).join(',')+']';
+  if(v&&typeof v==='object')return '{'+Object.keys(v).sort().filter(k=>v[k]!==undefined)
+    .map(k=>JSON.stringify(k)+':'+_canon(v[k])).join(',')+'}';
+  return JSON.stringify(v===undefined?null:v);
+}
+// ── наш запис у хмарі ──
+// `_wrote` у сейві — мітки часу останніх записів у хмару (кожен, хто пише,
+// додає свою). Наш непідтверджений запис (з `_unacked`) може бути поточною
+// версією хмари, а може лежати під записом іншого пристрою. Повертає
+// найновіший такий запис або null.
+function _uTs(x){return typeof x==='number'?x:((x&&+x.ts)||0);}
+function _ownInCloud(d,C){
+  if(!d||!C)return null;
+  const wrote={};(C._wrote||[]).forEach(t=>{wrote[+t]=1;});wrote[+C._ts||0]=1;
+  let best=null;
+  (d._unacked||[]).forEach(x=>{const t=_uTs(x);if(t&&wrote[t]&&(!best||t>_uTs(best)))best=x;});
+  return best;
+}
+// Наш запис уже в хмарі, поверх — чужий: злиття має рахувати зміни цієї
+// копії лише від того запису (його відбиток), інакше вони підуть удруге.
+function _rebaseOnOwn(d,own){
+  if(own&&typeof own==='object'&&own.H)d._baseH=own.H;
+  d._unacked=(d._unacked||[]).filter(x=>_uTs(x)>_uTs(own));
+}
+// Обкладинка й відгук не порівнюються: вони лежать окремо за назвою|автором,
+// і в повторно прочитаної книги хмара підставляє обкладинку першого
+// прочитання — сейви здавались би різними щоразу.
+function _sameSave(a,b){
+  const strip=o=>{const r={};Object.keys(o||{}).forEach(k=>{if(k[0]!=='_')r[k]=o[k];});
+    if(Array.isArray(r.books))r.books=r.books.map(x=>{if(!x||typeof x!=='object')return x;
+      const y=Object.assign({},x);delete y.coverUrl;delete y.rev;return y;});
+    return r;};
+  return _canon(strip(a))===_canon(strip(b));
+}
+function _delIds(d){const o={};((d&&d.booksDel)||[]).forEach(x=>{if(x&&x.id)o[x.id]=1;});return o;}
+
+// Відбиток спільної версії: лічильники — числом, решта полів — хешем. По ньому
+// злиття знає, що змінила ця копія, а що — інша.
+const SAVE_COUNTERS=['coins','bookPoints','booksRead','totalBought','totalCoinsSpent'];
+const SAVE_MERGED=['books','booksDel','progress','progressOrder','unlockedLocs','wallsSeen',
+                   'quests','questsDone','questDecl','questDeclIds','questsGone','questsBack'];
+// Квест, прибраний руками (скасоване запрошення, прибране сповіщення,
+// зустрічне, зняте при прийнятті), — щоб злиття не повернуло його зі старої копії.
+function questGone(d,id){
+  if(!d||!id)return;
+  const g=d.questsGone=d.questsGone||{};
+  g[id]=Date.now();
+  // Будь-який квест живе не довше 30 днів — довша пам'ять не потрібна.
+  Object.keys(g).forEach(k=>{if(Date.now()-(+g[k]||0)>2*Q_MS)delete g[k];});
+}
+function _hash(v){
+  const s=JSON.stringify(v===undefined?null:v);let h=5381;
+  for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;
+  return 'h'+(h>>>0).toString(36)+'.'+s.length;
+}
+function _baseOf(d){
+  const H={};
+  Object.keys(d||{}).forEach(k=>{
+    if(k[0]==='_'||SAVE_MERGED.indexOf(k)>=0)return;
+    H[k]=SAVE_COUNTERS.indexOf(k)>=0?(+d[k]||0):_hash(d[k]);
+  });
+  return H;
+}
+const _clone=v=>v===undefined?undefined:JSON.parse(JSON.stringify(v));
+const Q_RANK={inv:0,act:1,dec:2,done:3};
+// L — ця копія (пам'ять / копія на пристрої), C — хмарна. Результат — нова
+// пам'ять; `_base`/`_baseH` ставить той, хто викликає (від C).
+function _mergeSaves(L,C){
+  L=L||{};C=C||{};
+  ensureBookIds(L);ensureBookIds(C);
+  const H=L._baseH||null;
+  const out=_clone(C);
+  delete out._jrAdded;delete out._unacked;delete out._tab;   // службові поля — лише свої, не хмарні
+  // видалення — з обох боків
+  const dels={};
+  [].concat(C.booksDel||[],L.booksDel||[]).forEach(x=>{if(x&&x.id&&!dels[x.id])dels[x.id]=x;});
+  if(Object.keys(dels).length||C.booksDel)out.booksDel=Object.values(dels);
+  // книги: об'єднання за id; одну й ту саму — новіше відредаговану
+  const books=(C.books||[]).filter(b=>b&&!dels[b.id]).map(_clone);
+  const at={};books.forEach((b,i)=>{at[b.id]=i;});
+  const added=[];
+  (L.books||[]).forEach(b=>{
+    if(!b||dels[b.id])return;
+    if(at[b.id]===undefined){at[b.id]=books.length;books.push(_clone(b));added.push(b);}
+    else if((+b.upd||0)>(+books[at[b.id]].upd||0))books[at[b.id]]=_clone(b);
+  });
+  out.books=books;
+  // покемони: стадія лише росте
+  out.progress=Object.assign({},C.progress||{});
+  Object.keys(L.progress||{}).forEach(k=>{
+    const l=L.progress[k],c=out.progress[k];
+    if(c===undefined||(typeof l==='number'&&typeof c==='number'&&l>c))out.progress[k]=l;
+  });
+  ['progressOrder','unlockedLocs','wallsSeen'].forEach(k=>{
+    if(!Array.isArray(L[k])&&!Array.isArray(C[k]))return;
+    const a=(C[k]||[]).slice();
+    (L[k]||[]).forEach(x=>{if(a.indexOf(x)<0)a.push(x);});
+    out[k]=a;
+  });
+  // квести: за id; той самий — далі просунутий стан, рівний — свіжіший
+  const maxMap=k=>{
+    const o=Object.assign({},C[k]||{});
+    Object.keys(L[k]||{}).forEach(x=>{o[x]=Math.max(+o[x]||0,+L[k][x]||0);});
+    if(Object.keys(o).length)out[k]=o;
+    return o;
+  };
+  // прибраний квест не повертається, якщо його не відновили пізніше
+  // (`questsBack` — квест повернуто з боку друга вже після прибирання)
+  const gone=maxMap('questsGone'),back=maxMap('questsBack');
+  const isGone=id=>(+gone[id]||0)>(+back[id]||0);
+  const qs={};const qOrder=[];
+  [].concat(C.quests||[],L.quests||[]).forEach(q=>{
+    if(!q||!q.id||isGone(q.id))return;
+    const p=qs[q.id];
+    if(!p){qs[q.id]=_clone(q);qOrder.push(q.id);return;}
+    const rq=Q_RANK[q.st]||0,rp=Q_RANK[p.st]||0;
+    if(rq>rp||(rq===rp&&(+q.tsUp||0)>(+p.tsUp||0)))qs[q.id]=_clone(q);
+  });
+  if(qOrder.length||C.quests||L.quests)out.quests=qOrder.map(id=>qs[id]);
+  const board={};const bOrder=[];
+  [].concat(C.questsDone||[],L.questsDone||[]).forEach(r=>{
+    if(!r||!r.id)return;
+    if(!board[r.id]){board[r.id]=_clone(r);bOrder.push(r.id);}
+    else if(!board[r.id].their&&r.their)board[r.id]=_clone(r);   // запис із книгою друга повніший
+  });
+  if(bOrder.length||C.questsDone||L.questsDone)
+    out.questsDone=bOrder.map(id=>board[id]).sort((a,b)=>(+a.endedAt||0)-(+b.endedAt||0)).slice(-Q_BOARD_MAX);
+  ['questDecl','questDeclIds'].forEach(k=>{
+    if(!L[k]&&!C[k])return;
+    const o=Object.assign({},C[k]||{});
+    Object.keys(L[k]||{}).forEach(x=>{o[x]=Math.max(+o[x]||0,+L[k][x]||0);});
+    out[k]=o;
+  });
+  // решта полів
+  Object.keys(L).forEach(k=>{
+    if(k[0]==='_'||SAVE_MERGED.indexOf(k)>=0)return;
+    if(!(k in C)){out[k]=_clone(L[k]);return;}
+    if(SAVE_COUNTERS.indexOf(k)>=0){
+      // у спільній версії поля не було — вважаємо, що там був 0
+      if(H)out[k]=(+C[k]||0)+((+L[k]||0)-(typeof H[k]==='number'?H[k]:0));
+      return;                                    // без відбитка — хмарне число
+    }
+    // змінила ця копія (або додала поле, якого у спільній версії не було)
+    if(H&&(H[k]===undefined||_hash(L[k])!==H[k]))out[k]=_clone(L[k]);
+  });
+  // Без відбитка (копія старого коду) лічильники взято хмарні — додаємо те,
+  // що дали книги, яких у хмарі не було. З відбитком так само — лише для книг,
+  // які повернув журнал: їхні лічильники в різницю не входять.
+  added.forEach(b=>{
+    if(H&&!(L._jrAdded&&L._jrAdded[b.id]))return;
+    out.coins=(+out.coins||0)+(+b.coinsEarned||0);
+    out.bookPoints=(+out.bookPoints||0)+1;
+    out.booksRead=(+out.booksRead||0)+1;
+  });
+  return out;
+}
+
+// ── журнал пристрою ──
+// Лише для читача з хмарою: гість і гра без сервера мають одну копію, їй нема
+// з чим розійтись.
+function _jrnlKey(uid){return 'rw_jrnl_'+uid;}
+function _jrnlOn(uid){return !!(uid&&me&&!me.guest&&me.token&&SCRIPT_URL&&me.userId===uid);}
+function journalNote(uid,d){
+  if(!d||!_jrnlOn(uid))return;
+  const j=lsGet(_jrnlKey(uid),null)||{books:{},progress:{},board:{}};
+  const dels=_delIds(d);
+  ensureBookIds(d);
+  (d.books||[]).forEach(b=>{if(b&&b.id)j.books[b.id]=b;});
+  j.ok=j.ok||{};
+  Object.keys(j.books).forEach(id=>{if(dels[id]){delete j.books[id];delete j.ok[id];}});
+  Object.keys(d.progress||{}).forEach(k=>{
+    const v=d.progress[k];if(typeof v==='number'&&!(j.progress[k]>=v))j.progress[k]=v;
+  });
+  (d.questsDone||[]).forEach(r=>{if(r&&r.id)j.board[r.id]=r;});
+  const ids=Object.keys(j.board);
+  if(ids.length>Q_BOARD_MAX*2)ids.sort((a,b)=>(+j.board[a].endedAt||0)-(+j.board[b].endedAt||0))
+    .slice(0,ids.length-Q_BOARD_MAX*2).forEach(id=>{delete j.board[id];});
+  saveLocal(_jrnlKey(uid),JSON.stringify(j));
+}
+// Книги, які хмара вже мала (бачили їх у хмарному сейві або наше збереження з
+// ними дійшло). Лише такі журнал повертає: книга, яку інша вкладка цього
+// пристрою додала й ще не зберегла, не загубилась — вона прийде з тієї
+// вкладки, і повернення тут дало б її монети двічі.
+function journalConfirm(uid,books){
+  if(!_jrnlOn(uid)||!Array.isArray(books))return;
+  const j=lsGet(_jrnlKey(uid),null);if(!j||!j.books)return;
+  j.ok=j.ok||{};let ch=false;
+  books.forEach(b=>{const id=b&&(b.id||b);if(id&&j.books[id]&&!j.ok[id]){j.ok[id]=1;ch=true;}});
+  if(ch)saveLocal(_jrnlKey(uid),JSON.stringify(j));
+}
+// Повертає з журналу те, що зникло не через видалення. true — щось повернули.
+function journalRestore(uid,d){
+  if(!d||!_jrnlOn(uid))return false;
+  const j=lsGet(_jrnlKey(uid),null);if(!j)return false;
+  ensureBookIds(d);
+  const have={};(d.books||[]).forEach(b=>{if(b&&b.id)have[b.id]=1;});
+  const dels=_delIds(d);let changed=false;
+  Object.keys(j.books||{}).forEach(id=>{
+    if(have[id]||dels[id]||!(j.ok&&j.ok[id]))return;
+    const b=_clone(j.books[id]);
+    (d.books=d.books||[]).push(b);
+    // Монети й лічильники книги — і в копію, і у відбиток спільної версії:
+    // злиття додає різницю від відбитка, і без цього книга, яку хмара вже
+    // рахує (її додала інша вкладка), дала б монети вдруге. Якщо ж у хмарі
+    // книги немає, злиття додасть її лічильники саме (див. `_jrAdded`).
+    const n=+b.coinsEarned||0;
+    d.coins=(+d.coins||0)+n;d.bookPoints=(+d.bookPoints||0)+1;d.booksRead=(+d.booksRead||0)+1;
+    if(d._baseH){
+      d._baseH.coins=(+d._baseH.coins||0)+n;
+      d._baseH.bookPoints=(+d._baseH.bookPoints||0)+1;
+      d._baseH.booksRead=(+d._baseH.booksRead||0)+1;
+    }
+    (d._jrAdded=d._jrAdded||{})[id]=1;
+    console.warn('[Journal] повернуто книгу',b.title);
+    changed=true;
+  });
+  if(changed)d.books.sort((a,b)=>(bookTime(a)||0)-(bookTime(b)||0));
+  Object.keys(j.progress||{}).forEach(k=>{
+    const v=j.progress[k];d.progress=d.progress||{};
+    if(typeof v==='number'&&!(d.progress[k]>=v)){d.progress[k]=v;changed=true;
+      console.warn('[Journal] повернуто покемона',k);}
+  });
+  const onBoard={};(d.questsDone||[]).forEach(r=>{if(r&&r.id)onBoard[r.id]=1;});
+  const lostBoard=Object.keys(j.board||{}).filter(id=>!onBoard[id]);
+  if(lostBoard.length&&(d.questsDone||[]).length<Q_BOARD_MAX){
+    d.questsDone=(d.questsDone||[]).concat(lostBoard.map(id=>_clone(j.board[id])))
+      .sort((a,b)=>(+a.endedAt||0)-(+b.endedAt||0)).slice(-Q_BOARD_MAX);
+    changed=true;
+  }
+  return changed;
+}
 
 function splitCovers(d){
   const covers={},revs={};
@@ -6185,10 +6621,25 @@ const _saveBusy={};    // pid → проміс рейсу, що зараз у д
 const _saveAgain={};   // pid → поки рейс ішов, просили зберегти ще раз
 async function saveToCloud(pid,force){
   if(!pid)return;
+  // Гру забрала інша вкладка: ця нічого не пише й не шле (див. «одна вкладка на пристрої»).
+  if(!amLeader())return;
+  // Перед кожним збереженням: нічого, що бачив цей пристрій, не зникає
+  // без видалення (журнал), і журнал поповнюється.
+  if(state.players[pid]){
+    if(journalRestore(pid,state.players[pid])&&pid===cur){renderRes();renderLibraryTab();}
+    journalNote(pid,state.players[pid]);
+  }
   // Мітка часу збереження — по ній loadStateFor вирішує, чия копія новіша.
-  if(state.players[pid])state.players[pid]._ts=Date.now();
-  const stateJson=JSON.stringify(state.players[pid]);
-  saveLocal('rpg_state_'+pid,stateJson);
+  // `_unacked` — версії цієї копії, які могли піти в хмару без відповіді:
+  // мітка часу й відбиток того, що в ній було. Хмара з такою міткою (або
+  // така мітка в `_wrote` хмари — поверх уже зберігся інший пристрій) — це
+  // наш власний запис, і злиття рахує зміни лише ПІСЛЯ нього.
+  if(state.players[pid]){
+    const d=state.players[pid];
+    d._ts=Date.now();
+    d._unacked=(d._unacked||[]).concat([{ts:d._ts,H:_baseOf(d)}]).slice(-15);
+  }
+  saveMine(pid);
   // Гість у хмару не пишеться взагалі — його на сервері не існує.
   if(!me||me.guest||!me.token||!SCRIPT_URL)return;
   // Хмару ще підтягуємо (старт, розгортання): пам'ять може бути старою.
@@ -6212,7 +6663,6 @@ async function saveToCloud(pid,force){
 // Лічильник збережень, що дійшли: loadStateFor по ньому бачить, що відповідь
 // хмари старша за наше власне збереження.
 let _saveSeq=0;
-const _sentTs={};         // pid → `_ts` відправлених рейсів, на які відповідь не прийшла
 // Збереження не дійшло (зв'язок, сервер зайнятий) — повторюємо само, з
 // наростаючою паузою. Раніше зміни чекали наступної дії, а тим часом інший
 // пристрій міг зберегтися, і вони пропадали.
@@ -6230,12 +6680,15 @@ function _scheduleSaveRetry(pid){
 // збережене як є. Через це звичайне збереження (спіймав, додав книгу) важить
 // стільки ж, скільки важило, хоч би скільки було написано відгуків.
 const _revsSent={};
-// Пам'ять застаріла — замінюємо її хмарним сейвом цілком і малюємо заново.
-// Відкриті попапи закриваємо: вони могли показувати книгу за старим номером.
+// Сервер не прийняв: у хмарі новіша версія (зберігся інший пристрій чи
+// вкладка). Забираємо її й ЗЛИВАЄМО з пам'яттю — нічого звідси не губиться —
+// і шлемо злите. Відкриті попапи закриваємо: номери книг могли зсунутись.
+const _conflicts={};      // pid → скільки відмов поспіль (запобіжник від кола)
 async function _takeCloud(pid){
-  if(!me||me.userId!==pid)return;
+  if(!me||me.userId!==pid||!amLeader())return;
+  const ep=_epoch;
   const r=await _api({action:'load',userId:pid,token:me.token});
-  if(!me||me.userId!==pid)return;
+  if(!me||me.userId!==pid||ep!==_epoch||!amLeader())return;   // гру забрала інша вкладка
   if(!(r&&r.ok&&r.state)){
     // Хмарний сейв пошкоджений, версію віддали: своя копія — найкраще, що є,
     // шлемо її ще раз від цієї версії, і клітинка лікується.
@@ -6244,28 +6697,49 @@ async function _takeCloud(pid){
     }
     showSaveStatus('error');return;
   }
-  // Хмара — це НАШЕ останнє збереження: сервер записав, а відповідь до нас не
-  // дійшла (таймаут). Пам'ять не старша за хмару, а новіша — нічого не
-  // відкидаємо, лише беремо версію й шлемо пам'ять ще раз.
-  if((_sentTs[pid]||[]).indexOf(+r.state._ts)>=0&&state.players[pid]){
-    _sentTs[pid]=[];
-    state.players[pid]._base=r.savedAt||'';
+  // Хмара — це НАШ власний запис (сервер записав, а відповідь не дійшла; або
+  // його відправила вкладка, від якої ця перейняла гру разом із копією).
+  // Пам'ять не старша за хмару, а новіша — нічого не відкидаємо, лише беремо
+  // версію й шлемо пам'ять ще раз.
+  const own=state.players[pid]&&_ownInCloud(state.players[pid],r.state);
+  if(own&&_uTs(own)===+r.state._ts){
+    const d0=state.players[pid];
+    d0._unacked=(d0._unacked||[]).filter(x=>_uTs(x)>+r.state._ts);
+    d0._base=r.savedAt||'';
+    d0._baseH=_baseOf(r.state);
+    d0._wrote=r.state._wrote;
     _saveAgain[pid]=1;
     return;
   }
+  // наш запис лежить під чужим — зливатимемо від нього (див. _ownInCloud)
+  if(own)_rebaseOnOwn(state.players[pid],own);
+  // Запобіжник: злите знову не прийняли кілька разів поспіль — не крутимо
+  // запити без кінця; зміни лежать на пристрої й у журналі.
+  _conflicts[pid]=(_conflicts[pid]||0)+1;
+  if(_conflicts[pid]>5){
+    _conflicts[pid]=0;showSaveStatus('error');
+    showToast('Не вдається зберегти — напиши мені');
+    return;
+  }
+  const C=_clone(r.state);
+  mergeCovers(C,r.covers,r.revs);
+  migrateBookDates(C);
+  const merged=_mergeSaves(state.players[pid]||{},C);
   delete state.players[pid];
   initState(pid);
-  state.players[pid]=Object.assign(state.players[pid],r.state);
-  mergeCovers(state.players[pid],r.covers,r.revs);
+  state.players[pid]=Object.assign(state.players[pid],merged);
   const d=state.players[pid];
   if(!d.wallsSeen)d.wallsSeen=unlockedWallIds(d);
-  migrateBookDates(d);
   d._base=r.savedAt||'';
-  saveLocal('rpg_state_'+pid,JSON.stringify(d));
-  _saveAgain[pid]=0;                     // те, що чекало, рахувалось від старого
+  d._baseH=_baseOf(r.state);
+  d._ts=Date.now();                      // злите новіше за хмарне
+  journalRestore(pid,d);
+  journalNote(pid,d);
+  journalConfirm(pid,C.books);
+  saveMine(pid);
+  _saveAgain[pid]=1;                     // злите — у хмару
   _saveSeq++;
   if(me&&pid===me.userId)_cloudOk=true;
-  showSaveStatus('saved');
   if(pid!==cur)return;
   // Знімаємо відкриті попапи напряму, а не closeModal: той відкривав би
   // наступний із черги (наприклад «Квест пройдено»), і цикл одразу його
@@ -6274,16 +6748,30 @@ async function _takeCloud(pid){
   mOpen=false;
   applyTheme(curTheme());applyWall();
   renderMain();setMainTab(_mainTab||'map');
-  showToast('Дані оновились з іншого пристрою — повтори останню дію');
   nextM();
 }
 async function _pushSave(pid){
   // Гравець вийшов або змінився, поки рейс чекав: чужу пам'ять під іншим
   // userId не шлемо.
-  if(!me||me.guest||me.userId!==pid||!state.players[pid])return;
+  if(!me||me.guest||me.userId!==pid||!state.players[pid]||!amLeader())return;
+  const ep=_epoch;
+  // Злите чи повторне — теж через журнал: відправлене не може бути без того,
+  // що бачив цей пристрій.
+  journalRestore(pid,state.players[pid]);
+  ensureBookIds(state.players[pid]);
   showSaveStatus('saving');
-  (_sentTs[pid]=(_sentTs[pid]||[]).slice(-19)).push(+state.players[pid]._ts||0);
+  const sentTs=+state.players[pid]._ts||0;
+  const sentH=_baseOf(state.players[pid]);   // відбиток того, що їде в хмару
+  // Журнал міг щойно повернути книгу: відбиток цього відправлення — уже з нею.
+  (state.players[pid]._unacked||[]).forEach(x=>{if(x&&typeof x==='object'&&_uTs(x)===sentTs)x.H=sentH;});
+  const sentJr=Object.keys(state.players[pid]._jrAdded||{});
+  const sentIds=(state.players[pid].books||[]).map(b=>b&&b.id).filter(Boolean);
   const split=splitCovers(state.players[pid]);
+  // службові поля цього пристрою в хмару не їдуть
+  delete split.slim._jrAdded;delete split.slim._tab;delete split.slim._unacked;
+  // мітка цього запису — у список записів хмари (див. _ownInCloud)
+  const sentWrote=(state.players[pid]._wrote||[]).concat([sentTs]).slice(-50);
+  split.slim._wrote=sentWrote;
   const revsStr=JSON.stringify(split.revs);
   const revsChanged=_revsSent[pid]!==revsStr;
   // POST (not GET+JSONP) — a big library of books would otherwise blow past the
@@ -6295,10 +6783,15 @@ async function _pushSave(pid){
                  pub:JSON.stringify(buildPublicSummary(state.players[pid]))};
   if(revsChanged)payload.revs=revsStr;
   const r=await _api(payload);
-  if(!me||me.userId!==pid)return;
+  // Гравець змінився або гру забрала інша вкладка: відповідь уже не про цю
+  // пам'ять. Записане (якщо записалось) нова вкладка впізнає за `_unacked`.
+  if(!me||me.userId!==pid||ep!==_epoch||!amLeader())return;
   if(r&&r.ok){
     _saveSeq++;
-    _sentTs[pid]=[];                       // усе відправлене підтверджено цим рейсом
+    // усе, відправлене до цього рейсу включно, підтверджено
+    state.players[pid]._unacked=(state.players[pid]._unacked||[]).filter(x=>_uTs(x)>sentTs);
+    state.players[pid]._wrote=sentWrote;     // такий тепер список записів у хмарі
+    _conflicts[pid]=0;
     if(_saveRetry[pid])_saveRetry[pid].n=0;
     // Позначаємо доїханим ЛИШЕ після успіху — інакше провалений рейс назавжди
     // переконав би нас, що відгуки на сервері вже є.
@@ -6307,17 +6800,25 @@ async function _pushSave(pid){
     // Нова версія хмари — наступне збереження йде вже від неї.
     if(r.savedAt!==undefined&&state.players[pid]){
       state.players[pid]._base=r.savedAt;
-      saveLocal('rpg_state_'+pid,JSON.stringify(state.players[pid]));
+      state.players[pid]._baseH=sentH;
+      // повернуті журналом книги тепер у хмарі разом зі своїми монетами
+      const jr=state.players[pid]._jrAdded;
+      if(jr){sentJr.forEach(id=>{delete jr[id];});if(!Object.keys(jr).length)delete state.players[pid]._jrAdded;}
+      journalConfirm(pid,sentIds);         // ці книги тепер у хмарі
+      saveMine(pid);
     }
     showSaveStatus('saved');
     // Зліпок для друзів не влазив у стовпчик: друзі бачили б застиглі числа.
     if(r.pubSkipped&&!_pubWarned){_pubWarned=1;showToast('Дані для друзів завеликі — напиши мені');}
     return;
   }
-  // У хмарі новіше (зберігся інший пристрій чи вкладка): сервер цю копію не
-  // прийняв. Забираємо свіже — і кажемо, бо остання дія тут не збереглась.
+  // У хмарі новіше (зберігся інший пристрій чи вкладка) або в цій копії
+  // чогось бракує: сервер не прийняв. Зливаємо з хмарою й шлемо ще раз.
   // Відмова — сервер цей рейс точно не записав, тож його мітку не тримаємо.
-  if(r&&r.error==='stale'){_sentTs[pid].pop();await _takeCloud(pid);return;}
+  if(r&&r.error==='stale'){
+    state.players[pid]._unacked=(state.players[pid]._unacked||[]).filter(x=>_uTs(x)!==sentTs);
+    await _takeCloud(pid);return;
+  }
   showSaveStatus('error');
   if(!(r&&r.error==='auth'))_scheduleSaveRetry(pid);
   if(r&&r.error==='auth')showToast('Сесія закінчилась — увійди знову');
@@ -6362,10 +6863,12 @@ function locIconEl(locId,size=64){
 // і мапи мають свої фолбеки через onerror, тому вони цим класом не
 // керуються — і їхні .jpg видаляти не можна.
 (function(){const i=new Image();i.onerror=function(){document.documentElement.classList.add('no-webp');};i.src='loc_oak.webp';})();
+claimLead();   // нова вкладка забирає гру; інша, якщо була, стає на паузу
 boot();
+// Два вікна поруч на комп'ютері видні обидва: гра — у тому, де клацнули.
+window.addEventListener('focus',()=>{if(cur&&!amLeader())takeOverTab();});
 window.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='hidden'&&cur)
-    saveLocal('rpg_state_'+cur,JSON.stringify(state.players[cur]));
+  if(document.visibilityState==='hidden'&&cur)saveMine(cur);
   // Зміна, відкладена до кінця звірки, не має чекати: згорнуту гру телефон
   // може закрити, і зміна лишилась би тільки на пристрої.
   if(document.visibilityState==='hidden'&&cur&&_saveAfterSync[cur]){
@@ -6377,7 +6880,10 @@ window.addEventListener('visibilitychange',()=>{
     clearTimeout(_saveRetry[cur].t);_saveRetry[cur].t=0;
     saveToCloud(cur,true);
   }
-  if(document.visibilityState==='visible')refreshFriendsIfStale();
+  // Вкладку відкрили: гра — тут. Іншу вкладку, що зберігала, ставимо на паузу.
+  if(document.visibilityState==='visible'){
+    if(!amLeader())takeOverTab();else refreshFriendsIfStale();
+  }
 });
 // Друзі (а з ними запрошення в квест і ❤️) раніше підтягувались лише на вході
 // в гру й на вкладці «Друзі». На телефоні гра місяцями живе в фоні, і друг не
@@ -6388,7 +6894,7 @@ window.addEventListener('visibilitychange',()=>{
 // затерли б у хмарі все, що додали деінде.
 const FR_STALE_MS=60000,FR_POLL_MS=5*60000;
 function refreshFriendsIfStale(){
-  if(!me||me.guest||!me.token||!cur)return;
+  if(!me||me.guest||!me.token||!cur||!amLeader())return;
   if(Date.now()-_frLoadedAt<FR_STALE_MS)return;
   if(!_cloudSync){
     _cloudOk=false;
