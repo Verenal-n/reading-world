@@ -12,6 +12,9 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="icon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- Прапори «Літературних карт»: браузер качає лише частину шрифту з прапорами, і лише коли вони на екрані.
+     media="print" + onload — стиль не блокує показ гри: Google Fonts не відповідає — гра все одно стартує. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap" media="print" onload="this.media='all'">
 <meta name="theme-color" content="#16213e">
 <style>
 /* ═══════════ ТЕМИ ═══════════
@@ -54,6 +57,16 @@
   --plank-1:#7a5a32; --plank-2:#5a3e1e; --plank-3:#3e2a10; --plank-edge:#9a7a4a;
   --tip-bg:#fff; --tip-txt:#1e2d4a;
   --jn-road-op:.62;
+  /* Літературні карти: океан, суша без позначок, межі, вибрана країна (лінія
+     --map-sel на облямівці --map-sel-halo — видно на будь-якому відтінку);
+     країни авторів — сині, місця подій — жовті (1–2, 3–9, 10+); точки міст. Графіка ≥3:1:
+     відтінок 1–2 проти пустої суші, контур вибору проти кожного відтінку,
+     межа (--map-line) проти моря — так видно береги пустих країн
+     (перевіряє theme-test.js). */
+  --map-ocean:#101b35; --map-land:#263553; --map-line:#5f7299; --map-sel:#fff; --map-sel-halo:#0b1226;
+  --map-au1:#5b9bd5; --map-au2:#8cc4f0; --map-au3:#d2edff;
+  --map-tr1:#b8902e; --map-tr2:#dcb24a; --map-tr3:#ffe08a;
+  --map-dot:#fff; --map-dot-line:#16213e;
 }
 /* Обої (--wall) кладуться під інтерфейс і накриваються заслінкою кольору
    теми: --app-rgb дає той самий колір у rgb, --wall-veil — щільність.
@@ -88,6 +101,10 @@ html[data-theme="day"]{
   --plank-1:#b08a55; --plank-2:#8d6a3c; --plank-3:#6b4c26; --plank-edge:#c9a878;
   --tip-bg:#0f172a; --tip-txt:#fff;
   --jn-road-op:.3;
+  --map-ocean:#b9cde6; --map-land:#e4e9f0; --map-line:#5b6b82; --map-sel:#0f172a; --map-sel-halo:#fff;
+  --map-au1:#3b7ddd; --map-au2:#1d4ed8; --map-au3:#172f73;
+  --map-tr1:#a8670a; --map-tr2:#7c4a06; --map-tr3:#4a2a02;
+  --map-dot:#fff; --map-dot-line:#0f172a;
 }
 html[data-theme="ocean"]{
   color-scheme:light;
@@ -111,6 +128,10 @@ html[data-theme="ocean"]{
   --plank-1:#8fb6cf; --plank-2:#6b96b2; --plank-3:#4b7590; --plank-edge:#a9cde2;
   --tip-bg:#062b45; --tip-txt:#fff;
   --jn-road-op:.3;
+  --map-ocean:#a9d2ee; --map-land:#e2e7ec; --map-line:#4f6a80; --map-sel:#062b45; --map-sel-halo:#fff;
+  --map-au1:#2f7fc0; --map-au2:#0b5e9a; --map-au3:#0c3b5c;
+  --map-tr1:#a3680a; --map-tr2:#7a4a05; --map-tr3:#4a2c02;
+  --map-dot:#fff; --map-dot-line:#062b45;
 }
 html[data-theme="paper"]{
   color-scheme:light;
@@ -134,6 +155,10 @@ html[data-theme="paper"]{
   --plank-1:#b08a55; --plank-2:#8d6a3c; --plank-3:#6b4c26; --plank-edge:#c9a878;
   --tip-bg:#2e2318; --tip-txt:#fdf6ea;
   --jn-road-op:.3;
+  --map-ocean:#d6c3a0; --map-land:#efe4cf; --map-line:#76603f; --map-sel:#2e2318; --map-sel-halo:#fffaf1;
+  --map-au1:#5b7fa6; --map-au2:#34577e; --map-au3:#1f3550;
+  --map-tr1:#a36a12; --map-tr2:#7a4a08; --map-tr3:#4c2c04;
+  --map-dot:#fffaf1; --map-dot-line:#2e2318;
 }
 html[data-theme="forest"]{
   color-scheme:dark;
@@ -150,6 +175,7 @@ html[data-theme="forest"]{
   --ok:#86efac;
   --shelf:#0d0f08; --shelf-lbl:#9a9a5c;
   --tip-txt:#143425;
+  --map-ocean:#0a1a12; --map-land:#2d4a3b; --map-line:#5f8a72;
 }
 html[data-theme="plum"]{
   color-scheme:dark;
@@ -167,6 +193,7 @@ html[data-theme="plum"]{
   --bad:#fb7185; --bad-2:#fda4af; --bad-solid:#f43f5e;
   --shelf:#140d0a;
   --tip-txt:#2a1740;
+  --map-ocean:#140a22; --map-land:#46305f; --map-line:#8a6aae;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:hidden;}
@@ -373,7 +400,7 @@ a.q-gr{color:inherit;}
 .stat-tiles{display:flex;gap:8px;margin:10px 0;}
 .stat-tile{flex:1;background:rgba(var(--ink),.05);border:1px solid rgba(var(--ink),.07);border-radius:12px;padding:10px 6px;text-align:center;}
 .stat-tile-val{font-size:20px;font-weight:800;color:var(--txt-hi);line-height:1.1;}
-.stat-tile-lbl{font-size:10px;color:var(--txt-3);margin-top:2px;}
+.stat-tile-lbl{font-size:11px;color:var(--txt-2);margin-top:2px;}
 .stats-chart-card{position:relative;background:var(--sunken-2);border:1px solid rgba(var(--ink),.06);border-radius:12px;padding:10px;margin-top:4px;}
 .stats-chart-tooltip{position:absolute;transform:translate(-50%,calc(-100% - 8px));background:var(--tip-bg);color:var(--tip-txt);font-size:12px;font-weight:800;padding:3px 9px;border-radius:7px;pointer-events:none;white-space:nowrap;box-shadow:0 2px 8px rgba(var(--shadow),.35);z-index:5;}
 .stats-chart-tooltip::after{content:'';position:absolute;left:50%;top:100%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--tip-bg);}
@@ -488,7 +515,7 @@ a.q-gr{color:inherit;}
 .btn-ok:hover{background:var(--pri-hi);}
 .btn-cancel{background:rgba(var(--ink),.08);color:var(--txt);border:1px solid rgba(var(--ink),.15);}
 .btn-cancel:hover{background:rgba(var(--ink),.14);}
-.flbl{font-size:10px;color:var(--accent);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px;}
+.flbl{font-size:11px;color:var(--accent);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px;}
 .form-section{background:rgba(var(--ink),.03);border:1px solid rgba(var(--ink),.06);border-radius:12px;padding:12px;margin-bottom:14px;}
 .form-section-title{font-size:12px;font-weight:700;color:var(--txt-hi);margin-bottom:10px;}
 .cover-preview-box{width:52px;height:74px;border-radius:8px;background:rgba(var(--ink),.06);border:1px dashed rgba(var(--ink),.2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden;}
@@ -711,6 +738,109 @@ select option{background:var(--panel);color:var(--txt-hi);}
 .theme-row{display:flex;gap:8px;overflow-x:auto;padding:2px 0 5px;scrollbar-width:thin;scrollbar-color:rgba(var(--ink),.15) transparent;}
 .theme-row::-webkit-scrollbar{height:3px;}
 .theme-row::-webkit-scrollbar-thumb{background:rgba(var(--ink),.15);border-radius:2px;}
+/* ═══════════ ЛІТЕРАТУРНІ КАРТИ ═══════════
+   Шари поверх гри (вибір місць, шторка країни автора, автори, карта) — над
+   модалкою (500) і під тостом (700), щоб картка книги лишалась під ними.
+   Кольори карти — токени --map-… у кожній темі. */
+.lm-ov{position:fixed;inset:0;z-index:600;display:flex;justify-content:center;align-items:flex-end;}
+.lm-scrim{position:absolute;inset:0;background:var(--scrim);}
+.lm-full{position:relative;width:100%;max-width:480px;height:100%;background:var(--app);display:flex;flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px);}
+.lm-sheet{position:relative;width:100%;max-width:480px;height:calc(100% - 64px);background:var(--panel);border-radius:18px 18px 0 0;
+  display:flex;flex-direction:column;box-shadow:0 -8px 30px rgba(var(--shadow),.35);}
+.lm-sheet.lm-short{height:auto;max-height:calc(100% - 64px);}
+.lm-grab{width:38px;height:4px;border-radius:2px;background:rgba(var(--ink),.22);margin:8px auto 2px;flex-shrink:0;}
+.lm-top{display:flex;align-items:center;gap:6px;min-height:52px;padding:0 6px 0 4px;border-bottom:1px solid rgba(var(--ink),.08);flex-shrink:0;}
+.lm-top-t{font-size:16px;font-weight:700;color:var(--txt-hi);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lm-ico{background:none;border:none;color:var(--accent);font-size:20px;min-width:44px;min-height:44px;cursor:pointer;font-family:inherit;line-height:1;}
+.lm-done{background:none;border:none;color:var(--accent);font-size:14px;font-weight:700;min-height:44px;padding:0 12px;cursor:pointer;font-family:inherit;}
+.lm-done.ghost{color:var(--txt-2);font-weight:600;}
+.lm-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px;}
+/* Діти не стискаються: картка країни під картою подовжує сторінку, а карта лишається свого розміру. */
+.lm-body>*{flex-shrink:0;}
+.lm-note{font-size:12px;line-height:1.45;color:var(--txt-2);}
+.lm-note b{color:var(--txt-hi);font-weight:700;}
+.lm-lbl{font-size:11px;font-weight:700;color:var(--txt-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.lm-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.lm-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(var(--acc),.12);border:1px solid rgba(var(--acc),.28);color:var(--txt);
+  border-radius:18px;padding:0 12px;font-size:13px;font-weight:600;min-height:36px;font-family:inherit;}
+.lm-chip.x{padding-right:0;min-height:44px;border-radius:22px;}
+.lm-chip.fic{background:rgba(var(--gold-rgb),.12);border-color:rgba(var(--gold-rgb),.35);}
+.lm-chip-x{background:none;border:none;color:var(--txt-3);font-size:15px;cursor:pointer;min-width:44px;min-height:44px;font-family:inherit;}
+.lm-chip.add{background:none;border-style:dashed;color:var(--accent);cursor:pointer;min-height:44px;border-radius:22px;}
+/* Прапори — шрифтом Noto Color Emoji (Google Fonts): Windows замість прапорів
+   показує літери (JP, UA). Не завантажився — системні емодзі. */
+.lm-flag{font-size:16px;line-height:1;}
+.lm-fl{font-family:'Noto Color Emoji',sans-serif;}
+.lm-cnt{display:flex;gap:14px;font-size:12px;color:var(--txt-3);}
+.lm-cnt b{color:var(--txt-hi);}
+.lm-cnt .full,.lm-cnt .full b{color:var(--gold);}
+.lm-inp{width:100%;background:rgba(var(--ink),.07);border:1px solid rgba(var(--ink),.15);border-radius:10px;padding:10px 12px;color:var(--txt-hi);
+  font-size:16px;outline:none;min-height:44px;font-family:inherit;}
+.lm-inp:focus{border-color:var(--accent);}
+.lm-list{display:flex;flex-direction:column;}
+.lm-list>.lm-li{flex-shrink:0;}
+.lm-li{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:6px 4px;background:none;border:none;border-bottom:1px solid rgba(var(--ink),.08);
+  color:var(--txt);font-family:inherit;font-size:14px;text-align:left;cursor:pointer;}
+.lm-li .lm-flag{width:24px;text-align:center;font-size:18px;flex-shrink:0;}
+.lm-li .lm-sub{margin-left:auto;color:var(--txt-2);font-size:12px;white-space:nowrap;padding-left:8px;}
+.lm-li .lm-li2{display:block;font-size:12px;color:var(--txt-2);}
+/* Заблокований рядок блідне, а пояснення («Уже 3 міста») — ні: його треба прочитати. */
+.lm-li.dis{cursor:default;}
+.lm-li.dis>:not(.lm-sub){opacity:.45;}
+.lm-li.sel{color:var(--accent);font-weight:700;}
+.lm-switch{margin-left:auto;width:42px;height:26px;border-radius:13px;background:rgba(var(--ink),.2);position:relative;flex-shrink:0;}
+.lm-switch::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--pri-txt);transition:left .15s;}
+.lm-switch.on{background:var(--ok-solid);}
+.lm-switch.on::after{left:19px;}
+.lm-hint{background:rgba(var(--acc),.08);border:1px solid rgba(var(--acc),.25);border-radius:10px;padding:10px;font-size:13px;line-height:1.4;color:var(--txt);}
+.lm-hint b{color:var(--txt-hi);}
+.lm-row{display:flex;gap:8px;align-items:center;}
+.lm-hint .lm-row{margin-top:8px;}
+.lm-mini{flex:1;border-radius:10px;border:1px solid rgba(var(--ink),.2);background:none;color:var(--txt);font-family:inherit;font-size:13px;font-weight:600;min-height:44px;cursor:pointer;}
+.lm-mini.pri{background:var(--pri);border-color:var(--pri);color:var(--pri-txt);}
+.lm-card{background:var(--sunken-2);border:1px solid rgba(var(--ink),.08);border-radius:12px;padding:12px;}
+.lm-card-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+.lm-card-t{font-size:13px;font-weight:700;color:var(--txt-hi);}
+.lm-link{background:none;border:none;color:var(--accent);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;min-height:44px;padding:0 2px;}
+.lm-btn{width:100%;border:none;border-radius:12px;background:var(--pri);color:var(--pri-txt);font-family:inherit;font-size:14px;font-weight:600;min-height:46px;cursor:pointer;}
+.lm-btn.ghost{background:rgba(var(--acc),.12);border:1px solid rgba(var(--acc),.3);color:var(--accent);}
+.lm-foot{flex-shrink:0;padding:6px 14px calc(8px + env(safe-area-inset-bottom,0px));background:var(--panel);border-top:1px solid rgba(var(--ink),.12);display:flex;flex-direction:column;gap:4px;}
+.lm-foot-row{display:flex;flex-wrap:wrap;align-items:center;column-gap:14px;}
+.lm-foot .lm-btn{min-height:44px;}
+.lm-radio{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;font-size:13px;color:var(--txt);}
+/* Своя радіокнопка: системна в темних темах ледь видна. Контур --txt-2 (≥3:1). */
+.lm-radio input{appearance:none;-webkit-appearance:none;width:20px;height:20px;margin:0;border:2px solid var(--txt-2);border-radius:50%;flex-shrink:0;cursor:pointer;background:none;}
+.lm-radio input:checked{border-color:var(--pri);background:radial-gradient(circle,var(--pri) 0 42%,transparent 47%);}
+.lm-radio input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.lm-seg{display:flex;background:var(--sunken-3);border-radius:12px;padding:3px;}
+.lm-seg button{flex:1;border:none;background:none;border-radius:9px;color:var(--txt-2);font-family:inherit;font-size:13px;font-weight:600;min-height:44px;cursor:pointer;}
+.lm-seg button.on{background:var(--seg-act);color:var(--txt-hi);}
+.lm-mapbox{position:relative;border-radius:12px;overflow:hidden;background:var(--map-ocean);touch-action:none;}
+.lm-mapbox svg{display:block;width:100%;height:auto;cursor:grab;}
+.lm-mapbox.mini{touch-action:auto;cursor:pointer;}
+.lm-mapbox.mini svg{cursor:pointer;}
+/* Під картою: легенда й кнопки наближення — рядком, щоб не закривали карту. */
+.lm-under{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+.lm-zoom{display:flex;gap:8px;margin-left:auto;}
+.lm-zoom button{width:44px;height:44px;border-radius:10px;border:1px solid rgba(var(--ink),.2);background:var(--glass);color:var(--txt-hi);font-size:18px;cursor:pointer;font-family:inherit;}
+.lm-legend{display:flex;gap:10px;align-items:center;font-size:12px;color:var(--txt-2);flex-wrap:wrap;}
+.lm-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px;}
+.lm-legend i.dot{border-radius:50%;width:10px;height:10px;background:var(--map-dot);box-shadow:0 0 0 1.5px var(--map-dot-line);}
+.lm-info .lm-li{cursor:default;}
+.lm-bars{display:flex;flex-direction:column;gap:8px;}
+.lm-bar{display:flex;align-items:center;gap:8px;font-size:12px;}
+.lm-bar-n{width:128px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt-2);font-weight:600;}
+.lm-bar-t{flex:1;height:12px;background:rgba(var(--ink),.08);border-radius:4px;overflow:hidden;}
+.lm-bar-f{display:block;height:100%;border-radius:4px;background:var(--map-au2);}
+.lm-bar-f.rest{background:var(--txt-4);}
+.lm-bar-v{width:24px;text-align:right;font-weight:700;color:var(--txt-hi);font-variant-numeric:tabular-nums;}
+.lm-quiet{border:1px dashed rgba(var(--ink),.2);border-radius:12px;padding:12px;font-size:12px;line-height:1.45;color:var(--txt-2);margin-top:4px;}
+.lm-quiet b{color:var(--txt-hi);}
+.lm-banner{display:flex;align-items:center;gap:8px;background:rgba(var(--gold-rgb),.12);border:1px solid rgba(var(--gold-rgb),.3);border-radius:10px;padding:4px 4px 4px 12px;font-size:13px;color:var(--txt);}
+.bd-author{display:block;margin:0 auto 8px;background:none;border:none;color:var(--accent);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;min-height:44px;padding:0 8px;}
+.bd-author .lm-chip{min-height:26px;padding:0 8px;font-size:11px;margin-left:4px;}
+.bd-places{margin-bottom:12px;}
 </style>
 <script>
 /* Тема ставиться до першого малювання, окремим скриптом у <head>: основний
@@ -783,6 +913,9 @@ try{var _t=localStorage.getItem('rw_theme');if(_t){_t=JSON.parse(_t);if(_t&&_t!=
       <div class="stats-sub-hdr">Загальна статистика</div>
       <div id="general-stats-widget"></div>
       <div class="stats-divider"></div>
+      <div class="stats-sub-hdr">Карти читання</div>
+      <div id="maps-widget"></div>
+      <div class="stats-divider"></div>
       <div class="stats-sub-hdr">Досягнення</div>
       <div id="achievements-widget"></div>
       <div class="stats-divider"></div>
@@ -819,6 +952,9 @@ try{var _t=localStorage.getItem('rw_theme');if(_t){_t=JSON.parse(_t);if(_t&&_t!=
 <div class="loc-toast" id="loc-toast"></div>
 <div class="ach-toast" id="ach-toast" onclick="openAchFromToast()"></div>
 
+<!-- Список країн «Літературних карт» (tests/build-geo.js). Не завантажився —
+     гра працює, лише без країн. -->
+<script src="geo/countries.js"></script>
 <script>
 // ═══════════ PLAYERS ═══════════
 // Раніше тут був хардкод трьох дітей. Тепер гравець — той, хто увійшов:
@@ -1847,6 +1983,7 @@ function renderGeneralStatsWidget(){
   const periodCard=`<div class="stats-chart-card">${periodTabs}${tiles}</div>`;
 
   el.innerHTML=`${periodCard}${chart}${formatDonut}${langDonut}${genreDonut}${pagesChart}${locProgress}`;
+  renderMapsWidget();
 }
 function showChartTip(evt,value){
   const g=evt.currentTarget;
@@ -3316,6 +3453,8 @@ function sanitizeFriends(list){
     // тільки той id, який у нас справді є: чужого рядка на цьому місці бути
     // не повинно взагалі.
     if(f.loc!==undefined&&!_anyLoc(f.loc))delete f.loc;
+    // Кнопка «Карти читання» — лише так/ні.
+    if(f.mp===1||f.mp===true)f.mp=1;else delete f.mp;
     // Номер Goodreads іде в href — лишаємо тільки цифри, адресу збираємо самі.
     _grScrub(f.last);
     // рік іде в onclick="setFriendWrapYear(…)", місяць — в індекс масиву назв.
@@ -3371,6 +3510,7 @@ function buildPublicSummary(d){
                rating:last.rating||null},last):null,
     wraps:wraps,
     q:qPublic(d),          // свій бік спільних квестів — другий бік читає це
+    mp:(!d.mapsOff&&lmHasData(d))?1:0,   // кнопка «Карти читання» в картці друга
     ts:Date.now(),
   };
 }
@@ -3403,7 +3543,8 @@ async function pushPublic(){
   if(!me||me.guest||!me.token||!cur||!_cloudOk)return;
   try{
     await _api({action:'pubSet',userId:me.userId,token:me.token,base:state.players[cur]._base||'',
-                pub:JSON.stringify(buildPublicSummary(state.players[cur]))});
+                pub:JSON.stringify(buildPublicSummary(state.players[cur])),
+                maps:buildMapsSummary(state.players[cur])});
   }catch(e){console.warn('[pub] не вдалося оновити зліпок',e);}
 }
 
@@ -4337,9 +4478,10 @@ function friendCardHTML(f,opts){
       ${f.streak?`<div class="fr-loc" style="margin-top:2px">🔥 ${esc(f.streak)} ${pluralUA(f.streak,'місяць','місяці','місяців')} підряд виконує ціль</div>`:''}
       ${goal?`<div class="fr-loc" style="margin-top:2px">${goal.replace(/^ · /,'')}</div>`:''}
       ${last}`}
-      ${(hasWrap||qDone().some(q=>String(q.with)===String(f.userId)))?`<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+      ${(hasWrap||f.mp||qDone().some(q=>String(q.with)===String(f.userId)))?`<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
         ${hasWrap?`<button class="fr-btn" onclick="openFriendWrap('${esc(f.userId)}')">📅 Рік у книгах</button>`:''}
         ${qDone().some(q=>String(q.with)===String(f.userId))?`<button class="fr-btn" onclick="openQuestHistory('${esc(f.userId)}')">🤝 Спільні квести</button>`:''}
+        ${f.mp?`<button class="fr-btn" onclick="openFriendMaps('${esc(f.userId)}')">🌍 Карти читання</button>`:''}
       </div>`:''}
     </div>
     ${opts.noMenu?'':`<div class="fr-menu-wrap">
@@ -5067,6 +5209,7 @@ function openProfileSettings(){
         :`<button class="wall-more" onclick="toggleWallLocks()">Ще ${wallLocked.length} — за локації та досягнення ▾</button>`):''}
 
     </div>
+    ${lmSettingsHTML()}
     <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(var(--ink),.08);display:flex;flex-direction:column;gap:7px">
       <div style="font-size:10.5px;color:var(--txt-3);text-align:center">
         ${me&&me.guest?'Гість — прогрес лише на цьому пристрої':'Читач'}
@@ -5228,7 +5371,8 @@ let _addBookRating=0;
 let _spSectionOpen={data:false,genre:false};
 function openSidePanel(){
   _addBookRating=0;
-  _spSectionOpen={data:false,genre:false};
+  _spSectionOpen={data:false,genre:false,places:false};
+  lmResetAdd();
   document.getElementById('side-content').innerHTML=_buildPagesHTML();
   document.getElementById('side-panel').classList.add('open');
   document.getElementById('side-ov').classList.add('open');
@@ -5266,7 +5410,7 @@ function _buildPagesHTML(){
           <div class="flbl">Назва книги</div>
           <input type="text" id="sp-book" class="finput" placeholder="Гаррі Поттер і філософський камінь" oninput="updSpLangAuto()">
           <div class="flbl">Автор</div>
-          <input type="text" id="sp-author" class="finput" placeholder="Дж. К. Роулінґ">
+          <input type="text" id="sp-author" class="finput" placeholder="Дж. К. Роулінґ" oninput="lmSpAuthorInput()">
           <div class="flbl">Кількість сторінок</div>
           <input type="number" id="sp-pages" class="finput" min="1" oninput="updSP()">
           <div class="flbl">Як прочитана</div>
@@ -5300,6 +5444,8 @@ function _buildPagesHTML(){
         </div>
       </div>
 
+      ${lmSpSectionHTML()}
+
       <div id="sp-error" class="sp-error" style="display:none"></div>
       <div id="sp-prev" style="display:none;text-align:center"></div>
       <button class="btn-ok" id="sp-submit" onclick="submitPages()" style="width:100%;padding:14px;font-size:14px;min-height:48px">Зарахувати книгу</button>
@@ -5309,6 +5455,7 @@ function toggleSpSection(key){
   _spSectionOpen[key]=!_spSectionOpen[key];
   document.getElementById('sp-section-'+key).style.display=_spSectionOpen[key]?'':'none';
   document.getElementById('sp-chevron-'+key).textContent=_spSectionOpen[key]?'▾':'▸';
+  if(key==='places'&&_spSectionOpen.places)renderSpPlaces();
 }
 function openSpSection(key){
   if(_spSectionOpen[key])return;
@@ -6027,10 +6174,11 @@ function openBookDetail(i,playerId){
     </div>
     ${coverEditForm}
     <div class="m-title" style="font-size:15px">${book.title}</div>
-    <div style="text-align:center;font-size:12px;color:var(--txt-2);margin-bottom:8px">${book.author||''}</div>
+    ${lmBookAuthorHTML(book,editable)}
     ${book.q?`<div style="text-align:center;font-size:11px;color:var(--ok);margin-bottom:8px">🤝 прочитано разом · ${esc(book.q.n)} · квест «${esc(book.q.g)}»</div>`:''}
     <div id="bd-stars" style="display:flex;justify-content:center;margin-bottom:8px">${starRatingHTML(_bdRating,editable,'onBdStarClick')}</div>
     <div style="text-align:center;font-size:11px;color:var(--txt-3);margin-bottom:12px">${book.pages} стор. · ${esc(uaDate(book))}</div>
+    ${lmBookPlacesCard(book,editable)}
     ${formatHtml}
     ${genreHtml}
     ${langHtml}
@@ -6103,7 +6251,9 @@ function bdRevInput(el){
 }
 function saveBookDetail(i){
   const d=pd();const book=(d.books||[])[i];if(!book)return;
-  book.upd=Date.now();   // при злитті копій перемагає новіше відредагована книга
+  const EDIT=['lang','rev','coverUrl','genre','format','rating'];
+  const snap=()=>JSON.stringify(EDIT.map(k=>k==='format'?(book[k]||DEFAULT_FORMAT):(book[k]==null||book[k]===''?null:book[k])));
+  const was=snap();
   const beforeAch=achSnapshot(d);
   const url=(document.getElementById('bd-cover-input').value||'').trim();
   const genre=document.getElementById('bd-genre').value||'';
@@ -6119,6 +6269,8 @@ function saveBookDetail(i){
   if(genre)book.genre=genre;else delete book.genre;
   book.format=_bdFormat;
   if(_bdRating)book.rating=_bdRating;else delete book.rating;
+  // при злитті копій перемагає новіше відредагована книга — лише справжня правка
+  if(snap()!==was)book.upd=Date.now();
   saveToCloud(cur);closeModal();renderLibraryTab();renderAchievementsWidget();renderGeneralStatsWidget();
   celebrateNewAchievements(d,beforeAch);
   // Жанр могли вказати вже потім — тоді книга зараховується в квест саме тут.
@@ -6154,6 +6306,7 @@ function closeSidePanel(){
 
 async function parseGoodreadsLink(){
   const url=(document.getElementById('sp-goodreads').value||'').trim();
+  lmSpGoodreads([]);   // підказки місць попереднього посилання — геть, навіть якщо це не розпізнається
   if(!url){showGoodreadsError('Встав посилання на Goodreads');return;}
   if(!SCRIPT_URL){showGoodreadsError('Не налаштовано хмарне збереження — розпізнавання недоступне');return;}
   const btn=document.getElementById('sp-parse-btn');
@@ -6167,6 +6320,8 @@ async function parseGoodreadsLink(){
   if(data.coverUrl)document.getElementById('sp-cover').value=data.coverUrl;
   openSpSection('data');
   updSP();updSpCoverPreview();updSpLangAuto();
+  if(_spSectionOpen.places)renderSpPlaces();
+  lmSpGoodreads(data.places);
   showToast('Розпізнано! Перевір поля і натисни «Зарахувати книгу»');
 }
 
@@ -6208,6 +6363,7 @@ function submitPages(){
   // однаково вказує на ту саму книгу.
   const gr=grIdFromUrl((document.getElementById('sp-goodreads')||{}).value);
   if(gr)book.gr=gr;
+  lmApplyAdd(book);
   d.books.push(book);
   jnJumpToLatest();   // нова книга — остання на шляху, до неї й ведемо
   renderRes();renderActions();renderLibraryTab();renderAchievementsWidget();renderGeneralStatsWidget();closeSidePanel();saveToCloud(cur);
@@ -6350,7 +6506,7 @@ function _delIds(d){const o={};((d&&d.booksDel)||[]).forEach(x=>{if(x&&x.id)o[x.
 // злиття знає, що змінила ця копія, а що — інша.
 const SAVE_COUNTERS=['coins','bookPoints','booksRead','totalBought','totalCoinsSpent'];
 const SAVE_MERGED=['books','booksDel','progress','progressOrder','unlockedLocs','wallsSeen',
-                   'quests','questsDone','questDecl','questDeclIds','questsGone','questsBack'];
+                   'quests','questsDone','questDecl','questDeclIds','questsGone','questsBack','authors','mapsOff','mapsAt'];
 // Квест, прибраний руками (скасоване запрошення, прибране сповіщення,
 // зустрічне, зняте при прийнятті), — щоб злиття не повернуло його зі старої копії.
 function questGone(d,id){
@@ -6365,10 +6521,14 @@ function _hash(v){
   for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;
   return 'h'+(h>>>0).toString(36)+'.'+s.length;
 }
+// Поля карт зливаються окремо, але їхній хеш у відбитку лишається: вкладка зі
+// старим кодом (до карт) зливає їх загальним правилом і без хешу вважала б, що
+// їх змінила вона, — і повернула б застарілі країни й показ карт.
+const SAVE_HASH_ANYWAY=['authors','mapsOff','mapsAt'];
 function _baseOf(d){
   const H={};
   Object.keys(d||{}).forEach(k=>{
-    if(k[0]==='_'||SAVE_MERGED.indexOf(k)>=0)return;
+    if(k[0]==='_'||(SAVE_MERGED.indexOf(k)>=0&&SAVE_HASH_ANYWAY.indexOf(k)<0))return;
     H[k]=SAVE_COUNTERS.indexOf(k)>=0?(+d[k]||0):_hash(d[k]);
   });
   return H;
@@ -6393,8 +6553,19 @@ function _mergeSaves(L,C){
   const added=[];
   (L.books||[]).forEach(b=>{
     if(!b||dels[b.id])return;
-    if(at[b.id]===undefined){at[b.id]=books.length;books.push(_clone(b));added.push(b);}
-    else if((+b.upd||0)>(+books[at[b.id]].upd||0))books[at[b.id]]=_clone(b);
+    if(at[b.id]===undefined){at[b.id]=books.length;books.push(_clone(b));added.push(b);return;}
+    const c=books[at[b.id]];
+    const src=(+b.upd||0)>(+c.upd||0)?b:c,oth=src===b?c:b;
+    const w=src===b?_clone(b):c;
+    // місця подій — своя мітка `plu`: правка жанру на одному пристрої не
+    // стирає місць, поставлених на іншому. Мітки рівні (місця без мітки) —
+    // місця не губляться: прибрати їх може лише правка з новішою міткою.
+    const pu=x=>lmT(x.plu),hasP=x=>!!(x.fic||(Array.isArray(x.pl)&&x.pl.length));
+    if(pu(oth)>pu(src)||(pu(oth)===pu(src)&&!hasP(src)&&hasP(oth))){
+      delete w.pl;delete w.fic;delete w.plu;
+      if(oth.pl)w.pl=_clone(oth.pl);if(oth.fic)w.fic=oth.fic;if(oth.plu)w.plu=oth.plu;
+    }
+    books[at[b.id]]=w;
   });
   out.books=books;
   // покемони: стадія лише росте
@@ -6437,6 +6608,22 @@ function _mergeSaves(L,C){
   });
   if(bOrder.length||C.questsDone||L.questsDone)
     out.questsDone=bOrder.map(id=>board[id]).sort((a,b)=>(+a.endedAt||0)-(+b.endedAt||0)).slice(-Q_BOARD_MAX);
+  // автори «Літературних карт»: по полях (lmMergeAuthor)
+  if(L.authors||C.authors){
+    const a=Object.assign({},(C.authors&&typeof C.authors==='object')?C.authors:{});
+    const la=(L.authors&&typeof L.authors==='object')?L.authors:{};
+    Object.keys(la).forEach(k=>{a[k]=Object.prototype.hasOwnProperty.call(a,k)?lmMergeAuthor(k,la[k],a[k]):_clone(la[k]);});
+    out.authors=lmResolveAuthors(a);
+  }
+  // «Показувати мої карти друзям»: перемагає пізніше перемикання (`mapsAt`);
+  // без мітки — «вимкнено» (приватність)
+  if(L.mapsOff!==undefined||C.mapsOff!==undefined){
+    const ta=lmT(L.mapsAt),tc=lmT(C.mapsAt);
+    const s=ta>tc?L:tc>ta?C:null;
+    delete out.mapsOff;delete out.mapsAt;
+    if(s){if(s.mapsOff!==undefined)out.mapsOff=s.mapsOff;if(s.mapsAt)out.mapsAt=s.mapsAt;}
+    else{out.mapsOff=(L.mapsOff||C.mapsOff)?1:0;if(ta)out.mapsAt=ta;}
+  }
   ['questDecl','questDeclIds'].forEach(k=>{
     if(!L[k]&&!C[k])return;
     const o=Object.assign({},C[k]||{});
@@ -6780,7 +6967,9 @@ async function _pushSave(pid){
                  base:state.players[pid]._base||'',   // від якої версії хмари ця пам'ять
                  state:JSON.stringify(split.slim),
                  covers:JSON.stringify(split.covers),
-                 pub:JSON.stringify(buildPublicSummary(state.players[pid]))};
+                 pub:JSON.stringify(buildPublicSummary(state.players[pid])),
+                 maps:buildMapsSummary(state.players[pid]),
+                 lmv:1};   // клієнт знає про місця подій (сервер не відмовляє, а повертає хмарні)
   if(revsChanged)payload.revs=revsStr;
   const r=await _api(payload);
   // Гравець змінився або гру забрала інша вкладка: відповідь уже не про цю
@@ -6808,6 +6997,20 @@ async function _pushSave(pid){
       saveMine(pid);
     }
     showSaveStatus('saved');
+    // Сервер повернув хмарні місця подій (наша копія мала стару мітку): беремо
+    // їх собі й зберігаємося ще раз, щоб друзям пішов правильний зліпок карт.
+    if(r.healed&&typeof r.healed==='object'&&state.players[pid]){
+      const d=state.players[pid];let n=0;
+      (d.books||[]).forEach(b=>{
+        const h=b&&r.healed[b.id];if(!h||typeof h!=='object')return;
+        delete b.pl;delete b.fic;delete b.plu;
+        const pl=lmCleanPlaces(h.pl);if(pl.length)b.pl=pl;
+        if(h.fic)b.fic=1;
+        if(isFinite(+h.plu)&&+h.plu>0)b.plu=+h.plu;
+        n++;
+      });
+      if(n){saveMine(pid);lmRefreshViews();saveToCloud(pid);}
+    }
     // Зліпок для друзів не влазив у стовпчик: друзі бачили б застиглі числа.
     if(r.pubSkipped&&!_pubWarned){_pubWarned=1;showToast('Дані для друзів завеликі — напиши мені');}
     return;
@@ -6908,6 +7111,1344 @@ function refreshFriendsIfStale(){
 setInterval(()=>{
   if(document.visibilityState==='visible'&&Date.now()-_frLoadedAt>=FR_POLL_MS)refreshFriendsIfStale();
 },60000);
+
+// ═══════════ ЛІТЕРАТУРНІ КАРТИ ═══════════
+// «Карти читання»: «Країни авторів» і «Місця подій» у книгах.
+// Дані (public/geo/) ріже tests/build-geo.js; рішення — notes/decisions.md,
+// «Літературні карти».
+//
+// Сейв:
+//   d.authors[ключ] = {n: ім'я, c: код країни, to: ключ автора, з яким
+//     об'єднано, nx: [ключі, з якими «різні автори»], u: час правки,
+//     cu: час правки країни, tu: час правки об'єднання}.
+//     Ключ — authorKey(ім'я). Запис з'являється лише тоді, коли щось
+//     вказали; книга знаходить автора за своїм рядком автора (через `to`).
+//   книга: pl = [{c: код країни, g: geonameid, n: назва міста, y, x}] (місто —
+//     з g, країна без міста — лише c); fic = 1 — вигаданий світ; plu — час
+//     правки місць (окремо від `upd` книги).
+//   d.mapsOff = 1 — карти друзям не показуються; 0 — показуються (саме 0, а
+//     не видалене поле: видалення при злитті копій не перемагає).
+// Злиття копій (_mergeSaves): автор — по полях (lmMergeAuthor), місця — за `plu`.
+const LM_MAX_C=3, LM_MAX_CITY=3;
+const LM_MAPS_MAX=44000;       // стовпець maps на сервері — 45 000 знаків
+
+// ── країни ──
+let _lmC=null;
+function lmCountries(){
+  if(!_lmC){
+    _lmC=new Map();
+    (window.GEO_COUNTRIES||[]).forEach(r=>{
+      if(Array.isArray(r)&&/^[A-Z]{2}$/.test(r[0]))_lmC.set(r[0],{c:r[0],uk:r[1],en:r[2],al:r[3]||[]});
+    });
+  }
+  return _lmC;
+}
+function lmIsC(c){return typeof c==='string'&&lmCountries().has(c);}
+function lmCName(c){const x=lmCountries().get(c);return x?x.uk:'';}
+function lmFlag(c){
+  if(!/^[A-Z]{2}$/.test(c||''))return'';
+  return String.fromCodePoint(...[...c].map(ch=>0x1F1E6+ch.charCodeAt(0)-65));
+}
+const lmFl=c=>`<span class="lm-flag lm-fl">${lmFlag(c)}</span>`;
+// Пошук: без регістру й наголосів, обидві сторони однаково.
+function lmNorm(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[’ʼ`]/g,"'").replace(/\s+/g,' ').trim();
+}
+let _lmEn=null;
+function lmCountryByEn(name){
+  if(!_lmEn){
+    _lmEn=new Map();
+    lmCountries().forEach(x=>{[x.en].concat(x.al).forEach(n=>{const k=lmNorm(n);if(k&&!_lmEn.has(k))_lmEn.set(k,x.c);});});
+  }
+  return _lmEn.get(lmNorm(name))||null;
+}
+// Пошук країни за назвою, англійською й іншими назвами («Англія», «USA»,
+// «Макао»), з початку будь-якого слова. Першими — точний збіг, далі —
+// з початку назви, далі — з початку слова. Дефіс і пробіл — однаково:
+// «Кот д'Івуар» = «Кот-д'Івуар».
+let _lmCS=null;
+// Апостроф — як пробіл або як нічого: «кот д івуар», «Кот дІвуар».
+function lmFindCountries(q){
+  const hy=x=>lmNorm(x).replace(/-/g,' ');
+  const two=x=>[x.replace(/'/g,' ').replace(/\s+/g,' ').trim(),x.replace(/'/g,'')];
+  const qs=[...new Set(two(hy(q)))];
+  if(!_lmCS)_lmCS=[...lmCountries().values()].map(x=>({c:x.c,uk:x.uk,n:[...new Set([x.uk,x.en].concat(x.al).map(hy).filter(Boolean).flatMap(two))]}));
+  if(!qs[0])return _lmCS.map(x=>x.c);
+  const out=[];
+  _lmCS.forEach(x=>{
+    let r=9;
+    x.n.forEach(n=>qs.forEach(q=>{
+      if(!q)return;
+      if(n===q)r=0;
+      else if(n.startsWith(q))r=Math.min(r,1);
+      else if(n.split(/[\s\-(),.]+/).some(w=>w.startsWith(q)))r=Math.min(r,2);
+    }));
+    if(r<9)out.push([r,x]);
+  });
+  return out.sort((a,b)=>a[0]-b[0]||a[1].uk.localeCompare(b[1].uk,'uk')).map(a=>a[1].c);
+}
+
+// ── завантаження даних карти ──
+const _lmLoads={};
+function lmScript(src){
+  if(!_lmLoads[src])_lmLoads[src]=new Promise((ok,no)=>{
+    const s=document.createElement('script');s.src=src;s.onload=ok;
+    s.onerror=()=>{delete _lmLoads[src];s.remove();no(new Error(src));};
+    document.head.appendChild(s);
+  });
+  return _lmLoads[src];
+}
+let _lmWorld=null,_lmWorldP=null,_lmWorldLo=null;
+// Грубіші кордони для глобуса, поки його тягнуть: кожна четверта точка.
+function lmLowDetail(features){
+  const ring=r=>{if(r.length<=12)return r;const o=r.filter((p,i)=>i%4===0);o.push(r[r.length-1]);return o.length>=4?o:r;};
+  const geom=g=>!g?g:g.type==='Polygon'?{type:g.type,coordinates:g.coordinates.map(ring)}
+    :g.type==='MultiPolygon'?{type:g.type,coordinates:g.coordinates.map(p=>p.map(ring))}:g;
+  return features.map(f=>({type:'Feature',id:f.id,properties:{},geometry:geom(f.geometry)}));
+}
+function lmLoadWorld(){
+  if(_lmWorld)return Promise.resolve(_lmWorld);
+  if(!_lmWorldP)_lmWorldP=(async()=>{
+    await lmScript('geo/d3.min.js');await lmScript('geo/topojson-client.min.js');
+    const r=await fetch('geo/borders.json');if(!r.ok)throw new Error('borders '+r.status);
+    const t=await r.json();
+    _lmWorld=topojson.feature(t,t.objects.countries).features;
+    _lmWorldLo=lmLowDetail(_lmWorld);
+    return _lmWorld;
+  })().catch(e=>{_lmWorldP=null;throw e;});
+  return _lmWorldP;
+}
+// Міста: [geonameid, укр. назва або '', англ., країна, широта, довгота, тис. жителів,
+// регіон — лише коли назва в країні повторюється (три Спрингфілди в США)]
+let _lmCities=null,_lmCitiesP=null,_lmCitiesErr=false;
+function lmLoadCities(){
+  if(_lmCities)return Promise.resolve(_lmCities);
+  if(!_lmCitiesP)_lmCitiesP=fetch('geo/cities.json').then(r=>{if(!r.ok)throw new Error('cities '+r.status);return r.json();})
+    .then(a=>{
+      _lmCities=a.filter(x=>Array.isArray(x)&&lmIsC(x[3])).map(x=>({g:x[0],uk:x[1],en:x[2],c:x[3],y:x[4],x:x[5],pop:x[6],
+        r:typeof x[7]==='string'?x[7]:'',ku:lmNorm(x[1]),ke:lmNorm(x[2])}));
+      _lmCitiesErr=false;
+      return _lmCities;
+    }).catch(e=>{_lmCitiesP=null;_lmCitiesErr=true;throw e;});
+  return _lmCitiesP;
+}
+const lmCityName=x=>x.uk||x.en;
+const lmCityWhere=x=>lmCName(x.c)+(x.r?', '+x.r:'');
+
+// ── автори ──
+// Ключ автора — з тим самим очищенням, що й рядок автора в книзі (cleanBookText
+// прибирає апострофи й лапки): «В'ячеслав» у формі й «Вячеслав» у книзі — один
+// ключ. Ім'я, що збігається з полем об'єкта («constructor», «__proto__»), — з «~»,
+// щоб запис не зачепив прототип.
+function authorKey(name){
+  const k=String(name==null?'':name).toLowerCase().normalize('NFKC')
+    .replace(/[<>"'`\\’ʼ]/g,'').replace(/[.\s]+/g,' ').trim().slice(0,120);
+  return k&&(k in Object.prototype)?'~'+k:k;
+}
+// Читання поле не створює: інакше кожен сейв дістав би порожнє `authors`.
+function lmAuthors(d){
+  const a=d&&d.authors;
+  return(a&&typeof a==='object'&&!Array.isArray(a))?a:{};
+}
+// Мітка часу правки: не менша за попередню + 1. Годинник іншого пристрою міг
+// поспішати — нова правка тут усе одно новіша. Але не далі ніж на добу вперед:
+// мітка з годинника, що втік на рік, не має блокувати правки на інших пристроях.
+const LM_FUTURE=86400000;
+const lmTs=old=>Math.max(Date.now(),Math.min(lmT(old),Date.now()+LM_FUTURE)+1);
+// Мітка для порівняння при злитті: з майбутнього понад дві доби — як нуль
+// (запас удвічі: мітка, щойно поставлена на межі доби, лишається дійсною).
+function lmT(v){v=+v;return isFinite(v)&&v>0&&v<=Date.now()+2*LM_FUTURE?v:0;}
+// Ключ автора після всіх об'єднань. Два пристрої злили навхрест (X→Y і Y→X) —
+// коло: головним стає найменший ключ кола, однаково на всіх пристроях.
+function lmMain(d,key){
+  const A=lmAuthors(d),seen=[];let k=key;
+  while(A[k]&&A[k].to&&A[k].to!==k&&seen.length<50){
+    const i=seen.indexOf(k);
+    if(i>=0)return seen.slice(i).sort()[0];
+    seen.push(k);k=A[k].to;
+  }
+  return k;
+}
+// Країна автора; у самого немає — країна того, кого з ним об'єднали (новіша).
+function lmCountryOf(d,k){
+  const A=lmAuthors(d);
+  if(A[k]&&lmIsC(A[k].c))return A[k].c;
+  let best=null,bt=-1;
+  Object.keys(A).forEach(x=>{
+    const r=A[x];
+    if(x!==k&&r&&r.to&&lmIsC(r.c)&&(+r.cu||0)>bt&&lmMain(d,x)===k){bt=+r.cu||0;best=r.c;}
+  });
+  return best;
+}
+// Усі автори бібліотеки: головний ключ → {k, name, c, books, names}.
+function lmAuthorIndex(d){
+  const A=lmAuthors(d),idx=new Map();
+  const get=k=>{
+    if(!idx.has(k))idx.set(k,{k,name:(A[k]&&A[k].n)||'',c:lmCountryOf(d,k),books:[],names:[]});
+    return idx.get(k);
+  };
+  (d.books||[]).forEach(b=>{
+    if(!b||!b.author)return;
+    const own=authorKey(b.author);if(!own)return;
+    const e=get(lmMain(d,own));
+    e.books.push(b);
+    if(!e.name&&own===e.k)e.name=b.author;
+    if(own!==e.k&&e.names.indexOf(b.author)<0)e.names.push(b.author);
+  });
+  idx.forEach(e=>{if(!e.name)e.name=(e.books[0]&&e.books[0].author)||e.k;});
+  return idx;
+}
+function lmAuthorOf(d,name){
+  const k=lmMain(d,authorKey(name));
+  return{k,c:lmCountryOf(d,k)};
+}
+// Ім'я в записі — справжнє, з великими літерами; ключ (малими) — лише запасне.
+function lmTouch(d,k,name){
+  if(!d.authors||typeof d.authors!=='object'||Array.isArray(d.authors))d.authors={};
+  const A=d.authors;
+  if(!Object.prototype.hasOwnProperty.call(A,k))A[k]={n:cleanBookText(name||k)};
+  else if(name&&(!A[k].n||A[k].n===k))A[k].n=cleanBookText(name);
+  A[k].u=Date.now();
+  return A[k];
+}
+// Кожне поле має свою мітку часу: країна — `cu`, об'єднання — `tu`, «різні
+// автори» — `nxu`. Тоді дотик до автора на одному пристрої не стирає країну з
+// іншого, а суперечність «об'єднані» / «різні» вирішує пізніша дія.
+function lmSetC(r,c){if(lmIsC(c))r.c=c;else delete r.c;r.cu=lmTs(r.cu);}
+function lmSetAuthorCountry(d,k,c,name){lmSetC(lmTouch(d,k,name),c);}
+function lmDropNx(r,x){if(r&&Array.isArray(r.nx)&&r.nx.indexOf(x)>=0){r.nx=r.nx.filter(y=>y!==x);r.nxu=lmTs(r.nxu);}}
+// drop іде до keep; книги, нові й старі, з іменем drop — тепер автора keep.
+// c — країна, яку вибрали, коли в обох вона різна; інакше та, що є.
+function lmMerge(d,keep,drop,keepName,dropName,c){
+  if(!keep||!drop||keep===drop)return;
+  const kr=lmTouch(d,keep,keepName),dr=lmTouch(d,drop,dropName);
+  const A=d.authors;
+  if(kr.to){delete kr.to;kr.tu=lmTs(kr.tu);}     // той, кого лишаємо, ні до кого не веде (інакше коло)
+  if(c!==undefined){if(c!==kr.c)lmSetC(kr,c);}
+  else if(!lmIsC(kr.c)&&lmIsC(dr.c))lmSetC(kr,dr.c);
+  // «різні» знімаємо ДО мітки об'єднання: об'єднання мусить бути пізнішим
+  lmDropNx(kr,drop);lmDropNx(dr,keep);
+  dr.to=keep;dr.tu=lmTs(Math.max(lmT(dr.tu),lmT(kr.nxu),lmT(dr.nxu)));
+  Object.keys(A).forEach(k=>{if(A[k].to===drop&&k!==keep){A[k].to=keep;A[k].tu=lmTs(A[k].tu);A[k].u=Date.now();}});
+}
+// Роз'єднаний автор лишається з тією самою країною.
+function lmUnmerge(d,k){
+  const A=lmAuthors(d);const r=A[k];if(!r||!r.to)return;
+  const c=lmCountryOf(d,lmMain(d,r.to));
+  if(!lmIsC(r.c)&&c)lmSetC(r,c);
+  const t=r.to;
+  delete r.to;r.tu=lmTs(r.tu);r.u=Date.now();
+  // коло (X→Y і Y→X): знімаємо й зворотний вказівник, інакше головним стає інший
+  for(let x=t,i=0;x&&A[x]&&A[x].to&&i<50;i++){
+    if(A[x].to===k){delete A[x].to;A[x].tu=lmTs(A[x].tu);A[x].u=Date.now();break;}
+    x=A[x].to;
+  }
+}
+function lmNotSame(d,a,b,na,nb){
+  lmTouch(d,b,nb);
+  const r=lmTouch(d,a,na);
+  r.nx=(r.nx||[]).filter(x=>x!==b).concat([b]).slice(-LM_NX_MAX);r.nxu=lmTs(r.nxu);
+}
+const LM_NX_MAX=200;
+// Злиття копій: запис автора по полях, кожне за своєю міткою. Поле без мітки
+// (старий запис) — мітка 0: програє будь-якій справжній правці.
+function lmMergeAuthor(k,l,c){
+  if(!l||typeof l!=='object')return _clone(c);
+  if(!c||typeof c!=='object')return _clone(l);
+  const o={u:Math.max(+l.u||0,+c.u||0)};
+  const good=x=>x&&x!==k;
+  const nw=(+l.u||0)>(+c.u||0)?l:c,ol=nw===l?c:l;
+  const n=[nw.n,ol.n].find(good)||nw.n||ol.n;if(n)o.n=n;
+  const pick=(f,t)=>{
+    const ts=r=>lmT(r[t]);
+    const w=ts(l)>ts(c)?l:ts(c)>ts(l)?c:(c[f]!==undefined?c:l);
+    if(w[f]!==undefined)o[f]=w[f];
+    const m=Math.max(ts(l),ts(c));if(m)o[t]=m;
+  };
+  pick('c','cu');pick('to','tu');
+  // «різні автори» — список цілком за `nxu` (новіший перемагає, тож знятий
+  // при об'єднанні запис не повертається з застарілої копії); мітки рівні — разом.
+  const arr=r=>Array.isArray(r.nx)?r.nx:[];
+  const ln=lmT(l.nxu),cn=lmT(c.nxu);
+  const nx=(ln>cn?arr(l):cn>ln?arr(c):[...new Set(arr(c).concat(arr(l)))]).slice(-LM_NX_MAX);
+  if(nx.length)o.nx=nx;
+  const nxu=Math.max(ln,cn);if(nxu)o.nxu=nxu;
+  return o;
+}
+// Після злиття копій: автор водночас «об'єднаний з Y» і «різний з Y» (дві дії
+// на різних пристроях) — лишається пізніша.
+function lmResolveAuthors(A){
+  Object.keys(A).forEach(k=>{
+    const r=A[k];if(!r||!r.to)return;
+    const t=r.to,o=Object.prototype.hasOwnProperty.call(A,t)?A[t]:null;
+    [[r,t],[o,k]].forEach(([h,x])=>{
+      if(!r.to||!h||!Array.isArray(h.nx)||h.nx.indexOf(x)<0)return;
+      if(lmT(h.nxu)>lmT(r.tu)){delete r.to;r.tu=lmT(h.nxu);}
+      else h.nx=h.nx.filter(y=>y!==x);
+    });
+  });
+  return A;
+}
+function lmIsNotSame(d,a,b){
+  const A=lmAuthors(d);
+  return !!((A[a]&&(A[a].nx||[]).indexOf(b)>=0)||(A[b]&&(A[b].nx||[]).indexOf(a)>=0));
+}
+// «Харукі Муракамі» і «Haruki Murakami», «Стівен Кінг» і «Stephen King»:
+// однакові «кістяком» — латинкою, без голосних, з тим, що звучить однаково
+// (г/h/g, f/ph/v/w, ch перед r = k). Ініціали йдуть до слова на ту саму літеру
+// («Т. Шевченко» = «Тарас Шевченко», «Ursula K. Le Guin» = «Урсула Ле Ґуїн»).
+const LM_TR={а:'a',б:'b',в:'v',г:'h',ґ:'g',д:'d',е:'e',є:'ie',ж:'zh',з:'z',и:'y',і:'i',ї:'i',й:'i',к:'k',л:'l',м:'m',н:'n',о:'o',
+  п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'kh',ц:'ts',ч:'ch',ш:'sh',щ:'shch',ь:'',ю:'iu',я:'ia',ё:'e',ы:'y',э:'e',ъ:''};
+function lmSkelWord(w){
+  const s=w.replace(/shch|sch/g,'S').replace(/sh/g,'S').replace(/ch(?=r)/g,'k').replace(/tch|ch/g,'C')
+    .replace(/dzh|dj|zh|j/g,'g').replace(/kh/g,'h').replace(/ph/g,'f').replace(/th/g,'t').replace(/ck|q/g,'k')
+    .replace(/c(?=[eiy])/g,'s').replace(/c/g,'k').replace(/x/g,'ks').replace(/[wf]/g,'v').replace(/h/g,'g').replace(/y/g,'i')
+    .replace(/(.)\1+/g,'$1');
+  return s[0]+s.slice(1).replace(/[aeiouv]/g,'');
+}
+// {w: [{s: кістяк, i: ініціал}], key: кістяки слів (без ініціалів) за абеткою}
+function lmNameSig(name){
+  const w=[];
+  String(name||'').toLowerCase().split(/[\s.,]+/).forEach(x=>{
+    const init=[...x.replace(/[^\p{L}]/gu,'')].length===1||x==='дж';
+    const t=x.replace(/[а-яіїєґёыэъ]/g,ch=>LM_TR[ch]!==undefined?LM_TR[ch]:ch).normalize('NFD').replace(/[^a-z]/g,'');
+    if(t)w.push({s:lmSkelWord(t),i:init});
+  });
+  const long=w.filter(x=>!x.i).map(x=>x.s);
+  return{w,long,key:long.slice().sort().join(' ')};
+}
+function lmSameSig(a,b){
+  if(!a.long.length||!b.long.length)return false;
+  if(a.key===b.key)return true;
+  // у коротшого імені замість слова — ініціал на ту саму літеру
+  const sub=(x,y)=>{
+    if(x.long.length>=y.long.length)return false;
+    const rest=y.long.slice();
+    for(const s of x.long){const i=rest.indexOf(s);if(i<0)return false;rest.splice(i,1);}
+    const ini=x.w.filter(v=>v.i).map(v=>v.s[0]);
+    return rest.every(s=>{const j=ini.indexOf(s[0]);if(j<0)return false;ini.splice(j,1);return true;});
+  };
+  if(sub(a,b)||sub(b,a))return true;
+  // описка в довгому імені
+  return Math.min(a.key.length,b.key.length)>=10&&lmLev(a.key,b.key)<=1;
+}
+function lmSameName(a,b){return lmSameSig(lmNameSig(a),lmNameSig(b));}
+function lmLev(a,b){
+  if(Math.abs(a.length-b.length)>4)return 99;
+  let p=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){
+    const c=[i];
+    for(let j=1;j<=b.length;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));
+    p=c;
+  }
+  return p[b.length];
+}
+// Пари схожих авторів бібліотеки, яких ще не об'єднали й не назвали різними.
+function lmSuggestions(d,idx){
+  const list=[...idx.values()].map(e=>({e,s:lmNameSig(e.name)})).filter(x=>x.s.long.length);
+  const out=[];
+  for(let i=0;i<list.length&&out.length<5;i++)for(let j=i+1;j<list.length&&out.length<5;j++){
+    const a=list[i],b=list[j];
+    if(lmSameSig(a.s,b.s)&&!lmIsNotSame(d,a.e.k,b.e.k))out.push([a.e,b.e]);
+  }
+  return out;
+}
+
+// ── місця подій ──
+function lmPlaces(b){
+  return Array.isArray(b&&b.pl)?b.pl.filter(p=>p&&lmIsC(p.c)):[];
+}
+function lmPlaceCount(pl){
+  return{countries:new Set(pl.map(p=>p.c)),cities:pl.filter(p=>p.g).length};
+}
+// Своє чистимо на вході: назва міста — текст із нашого ж списку, але сейв
+// їздить між пристроями й копіями.
+function lmCleanPlaces(pl){
+  const out=[];
+  (Array.isArray(pl)?pl:[]).forEach(p=>{
+    if(!p||!lmIsC(p.c))return;
+    if(p.g&&Number.isInteger(+p.g)&&+p.g>0){
+      out.push({c:p.c,g:+p.g,n:cleanBookText(String(p.n||'')).slice(0,80),y:+(+p.y||0).toFixed(2),x:+(+p.x||0).toFixed(2)});
+    }else if(!out.some(o=>o.c===p.c&&!o.g))out.push({c:p.c});
+  });
+  return out.slice(0,LM_MAX_C+LM_MAX_CITY);
+}
+
+// ── бібліотека для карт: свої книги або карти друга ──
+// [{t: назва, a: автор, ak: ключ автора, ac: країна автора, pl: місця,
+//   i: місце книги в бібліотеці — чим більше, тим новіша}]
+function lmLibMine(d){
+  const idx=lmAuthorIndex(d),out=[],at=new Map((d.books||[]).map((b,i)=>[b,i]));
+  idx.forEach(e=>e.books.forEach(b=>out.push({t:b.title,a:e.name,ak:e.k,ac:e.c,pl:b.fic?[]:lmPlaces(b),fic:!!b.fic,i:at.get(b)})));
+  return out.sort((x,y)=>x.i-y.i);
+}
+function lmAuthorStats(lib){
+  const m=new Map(),none=new Set(),all=new Set();
+  lib.forEach(b=>{
+    all.add(b.ak);
+    if(!b.ac){none.add(b.ak);return;}
+    if(!m.has(b.ac))m.set(b.ac,{authors:new Set(),books:[]});
+    const e=m.get(b.ac);e.authors.add(b.ak);e.books.push(b);
+  });
+  return{m,none,all};
+}
+function lmTripStats(lib){
+  const m=new Map(),cities=new Map();
+  lib.forEach(b=>{
+    if(b.fic||!b.pl.length)return;
+    const seen=new Set();
+    b.pl.forEach(p=>{
+      if(!m.has(p.c))m.set(p.c,{books:[],cities:new Set()});
+      const e=m.get(p.c);
+      if(!seen.has(p.c)){e.books.push(b);seen.add(p.c);}
+      if(p.g){
+        e.cities.add(p.g);
+        if(!cities.has(p.g))cities.set(p.g,{g:p.g,n:p.n,c:p.c,y:p.y,x:p.x,books:[]});
+        cities.get(p.g).books.push(b);
+      }
+    });
+  });
+  return{m,cities};
+}
+function lmHasData(d){
+  const A=lmAuthors(d);
+  return (d.books||[]).some(b=>b&&(lmPlaces(b).length||(b.author&&!!lmAuthorOf(d,b.author).c)));
+}
+
+// ── для друзів ──
+// Стовпець maps: {v:1, b:[[назва, автор, країна автора, місця]]}, місце —
+// [країна] або [країна, geonameid, назва, широта, довгота]. Лише книги, у
+// яких є що показати; задовге ріжемо зі старих книг. Порожньо — не показуємо.
+// Обрізання за символами, а не за кодовими одиницями: емодзі не ріжеться навпіл.
+const lmCut=(s,n)=>[...String(s==null?'':s)].slice(0,n).join('');
+function buildMapsSummary(d){
+  if(!d||d.mapsOff)return'';
+  const rows=[];
+  lmLibMine(d).forEach(b=>{
+    if(!b.ac&&!b.pl.length)return;
+    rows.push([lmCut(b.t,120),lmCut(b.a,80),b.ac||'',
+      b.pl.map(p=>p.g?[p.c,p.g,p.n,p.y,p.x]:[p.c])]);
+  });
+  if(!rows.length)return'';
+  let s=JSON.stringify({v:1,b:rows});
+  while(s.length>LM_MAPS_MAX&&rows.length>1){rows.splice(0,Math.max(1,Math.ceil(rows.length/20)));s=JSON.stringify({v:1,b:rows});}
+  return s;
+}
+// Карти друга приходять із ЧУЖОГО клієнта: лишаємо лише коди з нашого
+// списку й числа; текст екранується при показі й ніколи не йде в onclick.
+function lmFriendLib(str){
+  let o=null;try{o=JSON.parse(str);}catch(e){return[];}
+  if(!o||!Array.isArray(o.b))return[];
+  const num=(v,lo,hi)=>{v=+v;return isFinite(v)&&v>=lo&&v<=hi?v:null;};
+  return o.b.slice(0,3000).filter(Array.isArray).map(r=>{
+    const a=lmCut(r[1],80);
+    const pl=[];
+    (Array.isArray(r[3])?r[3]:[]).slice(0,LM_MAX_C+LM_MAX_CITY).forEach(p=>{
+      if(!Array.isArray(p)||!lmIsC(p[0]))return;
+      if(p.length>1){
+        const g=num(p[1],1,1e9),y=num(p[3],-90,90),x=num(p[4],-180,180);
+        if(g&&Number.isInteger(g)&&y!==null&&x!==null)pl.push({c:p[0],g,n:lmCut(p[2],80),y,x});
+      }else pl.push({c:p[0]});
+    });
+    return{t:lmCut(r[0],120),a,ak:authorKey(a),ac:lmIsC(r[2])?r[2]:null,pl,fic:false};
+  });
+}
+
+// ── Вікідата: громадянство автора (P27) як підказка ──
+// Лише держави, що існують: у громадянства має бути код ISO (P297) і не бути
+// дати кінця (P576). Не знайшлось — без підказки. Відповідь (і невдача) —
+// одна на сесію для кожного автора.
+const _lmWd={};
+function lmWikidata(name){
+  const k=authorKey(name);
+  if(!k)return Promise.resolve(null);
+  if(!(k in _lmWd))_lmWd[k]=(async()=>{
+    const api='https://www.wikidata.org/w/api.php?origin=*&format=json&';
+    const val=c=>{const v=c&&c.mainsnak&&c.mainsnak.datavalue&&c.mainsnak.datavalue.value;return v&&typeof v==='object'?v.id:v;};
+    const get=async q=>{const r=await fetch(api+q);if(!r.ok)throw new Error('wd '+r.status);return r.json();};
+    try{
+      const lang=/[а-яіїєґ]/i.test(name)?'uk':'en';
+      const s=await get('action=wbsearchentities&type=item&limit=5&language='+lang+'&uselang='+lang+'&search='+encodeURIComponent(String(name).slice(0,100)));
+      const ids=(s.search||[]).map(x=>x.id).filter(x=>/^Q\d+$/.test(x)).slice(0,5);
+      if(!ids.length)return null;
+      const e=await get('action=wbgetentities&props=claims&ids='+ids.join('|'));
+      for(const id of ids){
+        const cl=((e.entities||{})[id]||{}).claims||{};
+        if(!(cl.P31||[]).some(c=>val(c)==='Q5'))continue;           // не людина
+        const cits=(cl.P27||[]).filter(c=>c.rank!=='deprecated')
+          .sort((a,b)=>(b.rank==='preferred')-(a.rank==='preferred')).map(val).filter(x=>/^Q\d+$/.test(x||''));
+        if(!cits.length)return null;
+        const ce=await get('action=wbgetentities&props=claims&ids='+cits.slice(0,6).join('|'));
+        for(const q of cits){
+          const cc=((ce.entities||{})[q]||{}).claims||{};
+          if(cc.P576)continue;                                       // СРСР та інші, яких уже немає
+          const code=(cc.P297||[]).map(val).find(lmIsC);
+          if(code)return code;
+        }
+        return null;
+      }
+      return null;
+    }catch(e){return null;}   // не вдалось — до кінця сесії без підказки, без повторних запитів
+  })();
+  return _lmWd[k];
+}
+
+// ── Goodreads: "places" → наш список ──
+// «Florence, Tuscany», «London, England», «England» — спершу місто (перша
+// частина) у країні з countryName, далі країна. Коли країна відома, беремо
+// лише її: «Georgia» у США — не Грузія, «Lebanon, Ohio» — не Ліван. Країни
+// немає — її дає остання частина («Paris, Texas» — штат США, а не Франція);
+// не впізнали — місце пропускаємо. Країну без міста прибираємо, якщо в ній
+// уже є місто.
+const LM_US_STATES=new Set(['alabama','alaska','arizona','arkansas','california','colorado','connecticut','delaware','florida',
+  'georgia','hawaii','idaho','illinois','indiana','iowa','kansas','kentucky','louisiana','maine','maryland','massachusetts',
+  'michigan','minnesota','mississippi','missouri','montana','nebraska','nevada','new hampshire','new jersey','new mexico',
+  'new york','north carolina','north dakota','ohio','oklahoma','oregon','pennsylvania','rhode island','south carolina',
+  'south dakota','tennessee','texas','utah','vermont','virginia','washington','west virginia','wisconsin','wyoming',
+  'district of columbia','washington, d.c.','washington d.c.']);
+async function lmFromGoodreads(places){
+  if(!Array.isArray(places)||!places.length)return[];
+  let cities=[];try{cities=await lmLoadCities();}catch(e){}
+  const out=[];
+  places.slice(0,10).forEach(p=>{
+    if(!p||typeof p!=='object')return;
+    const parts=String(p.name||'').split(',').map(s=>s.trim()).filter(Boolean);
+    if(!parts.length)return;
+    let cc=lmCountryByEn(p.country);
+    if(!cc&&parts.length>1){
+      const last=parts[parts.length-1];
+      cc=lmCountryByEn(last)||(LM_US_STATES.has(lmNorm(last))?'US':null);
+      if(!cc)return;
+    }
+    const first=lmNorm(parts[0]);
+    const city=cities.find(x=>x.ke===first&&(!cc||x.c===cc));
+    if(city){if(!out.some(o=>o.g===city.g))out.push({c:city.c,g:city.g,n:lmCityName(city),y:city.y,x:city.x});return;}
+    const c2=cc||lmCountryByEn(parts[0]);
+    if(c2&&!out.some(o=>o.c===c2&&!o.g))out.push({c:c2});
+  });
+  const withCity=new Set(out.filter(o=>o.g).map(o=>o.c));
+  const res=[];
+  out.forEach(o=>{
+    if(!o.g&&withCity.has(o.c))return;
+    const L=lmPlaceCount(res);
+    if(o.g&&L.cities>=LM_MAX_CITY)return;
+    if(!L.countries.has(o.c)&&L.countries.size>=LM_MAX_C)return;
+    res.push(o);
+  });
+  return res;
+}
+
+// ── шари ──
+function lmOpen(html,cls){
+  const ov=document.createElement('div');
+  ov.className='lm-ov '+(cls||'');
+  ov.innerHTML=html;
+  document.body.appendChild(ov);
+  return ov;
+}
+function lmCloseTop(){
+  const all=document.querySelectorAll('.lm-ov');
+  if(all.length)all[all.length-1].remove();
+}
+function lmLayer(name){return document.querySelector('.lm-ov.'+name);}
+function lmCloseLayer(name){const el=lmLayer(name);if(el)el.remove();}
+function lmPlaceChip(p,i){
+  const label=p.g?p.n:lmCName(p.c);
+  const x=i!==undefined?`<button class="lm-chip-x" aria-label="Прибрати" onclick="lmRemovePlace(${i})">✕</button>`:'';
+  return`<span class="lm-chip${x?' x':''}">${lmFl(p.c)} ${esc(label)}${x}</span>`;
+}
+const LM_FIC_CHIP=`<span class="lm-chip fic">🪐 Вигаданий світ</span>`;
+function lmPlacesChips(b){
+  if(b&&b.fic)return LM_FIC_CHIP;
+  return lmPlaces(b).map(p=>lmPlaceChip(p)).join('');
+}
+
+// ═══ вибір місць подій ═══
+// target: 'add' (форма додавання) або id книги.
+let _lmPick=null;
+// Форма додавання нічого не пише в сейв до «Зарахувати книгу»: країна автора
+// (ac: ключ → код або '' — «без країни») і «той самий автор» (same: ключ →
+// ключ автора з бібліотеки) чекають тут і застосовуються в lmApplyAdd.
+let _addLm={pl:[],fic:false,gr:[],hintNo:{},ac:{},same:{},like:null};
+function lmResetAdd(){_addLm={pl:[],fic:false,gr:[],hintNo:{},ac:{},same:{},like:null};}
+function lmPickTarget(){
+  if(!_lmPick)return null;
+  if(_lmPick.target==='add')return _addLm;
+  return(pd().books||[]).find(b=>b&&b.id===_lmPick.target)||null;
+}
+function openPlacePicker(target){
+  const t=target==='add'?_addLm:(pd().books||[]).find(b=>b&&b.id===target);
+  if(!t)return;
+  _lmPick={target,pl:lmCleanPlaces(t.pl),fic:!!t.fic,q:'',res:[]};
+  lmCloseLayer('lm-pick');
+  lmOpen(`<div class="lm-full"><div class="lm-top">
+      <button class="lm-done ghost" onclick="lmPickCancel()">Скасувати</button>
+      <div class="lm-top-t">Місця подій</div>
+      <button class="lm-done" onclick="lmPickDone()">Готово</button>
+    </div><div class="lm-body" id="lm-pick-body"></div></div>`,'lm-pick');
+  lmRenderPick();
+  lmPickLoadCities();
+}
+function lmPickLoadCities(){
+  lmLoadCities().then(()=>{if(_lmPick)lmRenderPickRes();}).catch(()=>{if(_lmPick)lmRenderPickRes();});
+}
+function lmRetryCities(){_lmCitiesErr=false;lmRenderPickRes();lmPickLoadCities();}
+function lmPickTitle(){
+  if(!_lmPick)return'';
+  if(_lmPick.target==='add')return(document.getElementById('sp-book')||{}).value||'';
+  const b=lmPickTarget();return b?b.title:'';
+}
+function lmRenderPick(){
+  const el=document.getElementById('lm-pick-body');if(!el||!_lmPick)return;
+  const P=_lmPick,L=lmPlaceCount(P.pl);
+  const title=lmPickTitle();
+  el.innerHTML=`${title?`<div class="lm-note">Книга: <b>${esc(title)}</b></div>`:''}
+    <div class="lm-chips">${P.fic?LM_FIC_CHIP:P.pl.length?P.pl.map((p,i)=>lmPlaceChip(p,i)).join(''):'<span class="lm-note">Ще нічого не додано</span>'}</div>
+    ${P.fic?'':`<div class="lm-cnt"><span class="${L.countries.size>=LM_MAX_C?'full':''}">Країни <b>${L.countries.size}/${LM_MAX_C}</b></span><span class="${L.cities>=LM_MAX_CITY?'full':''}">Міста <b>${L.cities}/${LM_MAX_CITY}</b></span></div>
+    <input class="lm-inp" id="lm-pick-q" type="search" placeholder="Місто або країна" autocomplete="off" oninput="lmPickInput(this.value)">
+    <div id="lm-pick-res"></div>`}
+    <button class="lm-li" style="margin-top:auto;border-top:1px solid rgba(var(--ink),.08)" onclick="lmToggleFic()">
+      <span class="lm-flag">🪐</span><span>Вигаданий світ<span class="lm-li2">Фентезі, інші планети. На карті не показується</span></span>
+      <span class="lm-switch ${P.fic?'on':''}" aria-hidden="true"></span></button>`;
+  const q=document.getElementById('lm-pick-q');
+  if(q){q.value=P.q;}
+  lmRenderPickRes();
+}
+function lmPickInput(v){if(!_lmPick)return;_lmPick.q=v;lmRenderPickRes();}
+function lmCityBlock(P,city){
+  if(P.pl.some(p=>p.g===city.g))return'Уже додано';
+  const L=lmPlaceCount(P.pl);
+  if(L.cities>=LM_MAX_CITY)return'Уже 3 міста';
+  if(!L.countries.has(city.c)&&L.countries.size>=LM_MAX_C)return'Уже 3 країни';
+  return'';
+}
+function lmCountryBlock(P,c){
+  const L=lmPlaceCount(P.pl);
+  if(L.countries.has(c))return'Уже є';
+  if(L.countries.size>=LM_MAX_C)return'Уже 3 країни';
+  return'';
+}
+function lmRenderPickRes(){
+  const box=document.getElementById('lm-pick-res');if(!box||!_lmPick||_lmPick.fic)return;
+  const P=_lmPick,q=lmNorm(P.q);
+  P.res=[];
+  if(!q){
+    const sug=P.target==='add'?(_addLm.gr||[]):[];
+    if(!sug.length){box.innerHTML='';return;}
+    P.res=sug.map(s=>s.g?{type:'city',city:{g:s.g,c:s.c,uk:s.n,en:s.n,y:s.y,x:s.x}}:{type:'country',c:s.c});
+    box.innerHTML=`<div class="lm-lbl" style="margin-top:2px">Підказка з Goodreads</div><div class="lm-chips">${P.res.map((r,i)=>
+      `<button class="lm-chip add" onclick="lmPickRes(${i})">${lmFl(r.type==='city'?r.city.c:r.c)} ${esc(r.type==='city'?lmCityName(r.city):lmCName(r.c))}</button>`).join('')}</div>`;
+    return;
+  }
+  // Країни шукаються й без списку міст; міста — коли він завантажився.
+  const word=s=>s.startsWith(q)||s.split(/[ -]/).some(w=>w.startsWith(q));
+  const cities=[];
+  if(_lmCities)for(const x of _lmCities){if(word(x.ku)||word(x.ke)){cities.push(x);if(cities.length>=6)break;}}
+  const countries=lmFindCountries(q).slice(0,3);
+  P.res=cities.map(city=>({type:'city',city})).concat(countries.map(c=>({type:'country',c})));
+  const note=_lmCities?'':_lmCitiesErr
+    ?`<p class="lm-note">Список міст не завантажився. Перевір інтернет <button class="lm-link" data-retry onclick="lmRetryCities()">Спробувати ще раз</button></p>`
+    :`<p class="lm-note">Завантажую список міст…</p>`;
+  if(!P.res.length){box.innerHTML=note||`<p class="lm-note">Такого міста немає в списку: тут лише міста від 100 000 жителів. Можна вибрати країну</p>`;return;}
+  box.innerHTML=note+`<div class="lm-list">${P.res.map((r,i)=>{
+    if(r.type==='city'){const bl=lmCityBlock(P,r.city);
+      return`<button class="lm-li${bl?' dis':''}" onclick="lmPickRes(${i})"><span class="lm-flag lm-fl">${lmFlag(r.city.c)}</span><span>${esc(lmCityName(r.city))}<span class="lm-li2">${esc(lmCityWhere(r.city))}</span></span><span class="lm-sub">${bl}</span></button>`;}
+    const bl=lmCountryBlock(P,r.c);
+    return`<button class="lm-li${bl?' dis':''}" onclick="lmPickRes(${i})"><span class="lm-flag lm-fl">${lmFlag(r.c)}</span><span>${esc(lmCName(r.c))}<span class="lm-li2">Без міста</span></span><span class="lm-sub">${bl}</span></button>`;
+  }).join('')}</div>`;
+}
+function lmPickRes(i){
+  const P=_lmPick;if(!P)return;const r=P.res[i];if(!r)return;
+  if(r.type==='city'){
+    const c=r.city;if(lmCityBlock(P,c))return;
+    P.pl=P.pl.filter(p=>!(p.c===c.c&&!p.g));
+    P.pl.push({c:c.c,g:c.g,n:lmCityName(c),y:c.y,x:c.x});
+  }else{
+    if(lmCountryBlock(P,r.c))return;
+    P.pl.push({c:r.c});
+  }
+  P.q='';lmRenderPick();
+}
+function lmRemovePlace(i){if(!_lmPick)return;_lmPick.pl.splice(i,1);lmRenderPick();}
+// Місця лишаються до закриття: вимкнув «Вигаданий світ» — вони на місці.
+// Записуються лише без вигаданого світу (lmPickDone).
+function lmToggleFic(){
+  if(!_lmPick)return;
+  _lmPick.fic=!_lmPick.fic;
+  _lmPick.q='';
+  lmRenderPick();
+}
+function lmPickCancel(){_lmPick=null;lmCloseLayer('lm-pick');}
+function lmPickDone(){
+  const P=_lmPick;_lmPick=null;
+  lmCloseLayer('lm-pick');
+  if(!P)return;
+  const pl=lmCleanPlaces(P.pl);
+  if(P.target==='add'){
+    _addLm.pl=pl;_addLm.fic=P.fic;
+    renderSpPlaces();
+    return;
+  }
+  const b=(pd().books||[]).find(x=>x&&x.id===P.target);if(!b)return;
+  const before=JSON.stringify([b.pl||[],!!b.fic]);
+  if(P.fic){b.fic=1;delete b.pl;}else{delete b.fic;if(pl.length)b.pl=pl;else delete b.pl;}
+  if(JSON.stringify([b.pl||[],!!b.fic])===before)return;
+  b.plu=lmTs(b.plu);
+  saveToCloud(cur);
+  lmRefreshViews();
+}
+// Після будь-якої зміни: картка книги, форма, статистика.
+function lmRefreshViews(){
+  const bd=document.getElementById('bd-places');
+  if(bd){const b=(pd().books||[]).find(x=>x&&x.id===bd.dataset.id);if(b)bd.innerHTML=lmBookPlacesHTML(b,true);}
+  const ba=document.getElementById('bd-author');
+  if(ba){const b=(pd().books||[]).find(x=>x&&x.id===ba.dataset.id);if(b)ba.innerHTML=lmAuthorBtnInner(b.author);}
+  if(document.getElementById('sp-places-body'))renderSpPlaces();
+  renderMapsWidget();
+  const mp=lmLayer('lm-map');if(mp&&_lmMap&&_lmMap.who==='me')lmRenderMap();
+  const au=lmLayer('lm-authors');if(au)lmRenderAuthors();
+}
+
+// ═══ картка книги ═══
+function lmAuthorBtnInner(name){
+  const a=lmAuthorOf(pd(),name);
+  return`${esc(name)} ${a.c?lmFl(a.c):'<span class="lm-chip add">+ Вибрати країну</span>'}`;
+}
+function lmBookAuthorHTML(book,editable){
+  if(!book.author)return'';
+  if(!editable)return`<div style="text-align:center;font-size:12px;color:var(--txt-2);margin-bottom:8px">${esc(book.author)}</div>`;
+  return`<button class="bd-author" id="bd-author" data-id="${esc(book.id)}" onclick="openAuthorSheetFor(this.dataset.id)">${lmAuthorBtnInner(book.author)}</button>`;
+}
+function lmBookPlacesHTML(book,editable){
+  const chips=lmPlacesChips(book);
+  return`<div class="lm-card-h" style="margin-bottom:${chips?'8px':'0'}"><span class="lm-card-t">🌍 Місця подій</span>
+      ${editable?`<button class="lm-link" onclick="openPlacePicker(this.closest('#bd-places').dataset.id)">${chips?'Змінити':'+ Додати місце'}</button>`:''}</div>
+    ${chips?`<div class="lm-chips">${chips}</div>`:''}`;
+}
+function lmBookPlacesCard(book,editable){
+  if(!editable&&!book.fic&&!lmPlaces(book).length)return'';
+  return`<div class="lm-card bd-places" id="bd-places" data-id="${esc(book.id)}">${lmBookPlacesHTML(book,editable)}</div>`;
+}
+function openAuthorSheetFor(bookId){
+  const b=(pd().books||[]).find(x=>x&&x.id===bookId);if(!b)return;
+  openAuthorSheet(b.author);
+}
+
+// ═══ шторка «Країна автора» ═══
+// form — відкрита з форми додавання: нічого не пише, вибір чекає в _addLm.ac.
+let _lmSheet=null;   // {k, own, name, q, form}
+function openAuthorSheet(name,form){
+  const d=pd(),own=authorKey(name);if(!own)return;
+  const k=form?lmSpEff(d,name).k:lmMain(d,own);
+  const e=lmAuthorIndex(d).get(k);
+  _lmSheet={k,own,name:e&&!form?e.name:String(name).trim(),q:'',form:!!form};
+  lmCloseLayer('lm-author');
+  lmOpen(`<div class="lm-scrim" onclick="closeAuthorSheet()"></div>
+    <div class="lm-sheet" role="dialog" aria-label="Країна автора"><div class="lm-grab"></div>
+      <div class="lm-top" style="border:none;min-height:44px;padding-left:14px">
+        <div class="lm-top-t">Країна автора</div>
+        <button class="lm-ico" aria-label="Закрити" onclick="closeAuthorSheet()">✕</button>
+      </div>
+      <div class="lm-body" id="lm-author-body" style="padding-top:0"></div>
+    </div>`,'lm-author');
+  lmRenderSheet();
+  if(!lmSheetCur())lmWikidata(_lmSheet.name).then(()=>{if(_lmSheet&&_lmSheet.k===k)lmRenderSheetHint();});
+}
+function closeAuthorSheet(){_lmSheet=null;lmCloseLayer('lm-author');}
+// Країна, яка зараз стоїть у шторці.
+function lmSheetCur(){
+  const S=_lmSheet;if(!S)return null;
+  if(S.form)return lmSpEff(pd(),S.name).c;
+  return lmCountryOf(pd(),S.k);
+}
+function lmRenderSheet(){
+  const el=document.getElementById('lm-author-body');if(!el||!_lmSheet)return;
+  const d=pd(),S=_lmSheet,e=lmAuthorIndex(d).get(S.k);
+  const n=e?e.books.length:0;
+  const has=n?`${n} ${bookWord(n)} у бібліотеці`:'ще немає книг у бібліотеці';
+  const foot=!S.form?`Країна застосується до всіх книг автора (${n})`
+    :n?`Країна застосується до всіх книг автора (${n}), коли додаси книгу`:'Країна запишеться разом із книгою';
+  el.innerHTML=`<div class="lm-note">${esc(S.name)} · ${has}${e&&e.names.length?`<br>Також: ${e.names.map(esc).join(', ')}`:''}</div>
+    <div id="lm-wd"></div>
+    <input class="lm-inp" id="lm-author-q" type="search" placeholder="Пошук країни" autocomplete="off" oninput="lmSheetInput(this.value)">
+    <div id="lm-author-list"></div>
+    <p class="lm-note">${foot}</p>
+    ${S.form?'':`<button class="lm-btn ghost" onclick="openAuthorsScreen(_lmSheet&&_lmSheet.k)">Об'єднати з іншим автором</button>`}`;
+  document.getElementById('lm-author-q').value=S.q;
+  lmRenderSheetHint();lmRenderSheetList();
+}
+function lmRenderSheetHint(){
+  const box=document.getElementById('lm-wd');if(!box||!_lmSheet)return;
+  const k=_lmSheet.k;
+  box.innerHTML='';
+  if(lmSheetCur())return;
+  const p=_lmWd[authorKey(_lmSheet.name)];
+  if(!p)return;
+  p.then(c=>{
+    if(!c||!_lmSheet||_lmSheet.k!==k||lmSheetCur())return;
+    const b=document.getElementById('lm-wd');if(!b)return;
+    b.innerHTML=`<div class="lm-hint">За даними Вікідати: ${lmFl(c)} <b>${esc(lmCName(c))}</b>
+      <div class="lm-row"><button class="lm-mini pri" onclick="lmSheetSet('${c}')">Поставити</button></div></div>`;
+  });
+}
+function lmSheetInput(v){if(!_lmSheet)return;_lmSheet.q=v;lmRenderSheetList();}
+function lmRenderSheetList(){
+  const box=document.getElementById('lm-author-list');if(!box||!_lmSheet)return;
+  const cur0=lmSheetCur(),q=lmNorm(_lmSheet.q);
+  let ids=lmFindCountries(q);
+  if(!q)ids.sort((a,b)=>lmCName(a).localeCompare(lmCName(b),'uk'));
+  if(cur0&&ids.indexOf(cur0)>=0)ids=[cur0].concat(ids.filter(x=>x!==cur0));
+  box.innerHTML=`<div class="lm-list">${q?'':`<button class="lm-li${!cur0?' sel':''}" onclick="lmSheetSet('')"><span class="lm-flag">·</span>Без країни${!cur0?'<span class="lm-sub">✓</span>':''}</button>`}
+    ${ids.map(c=>`<button class="lm-li${c===cur0?' sel':''}" onclick="lmSheetSet('${c}')"><span class="lm-flag lm-fl">${lmFlag(c)}</span>${esc(lmCName(c))}${c===cur0?'<span class="lm-sub">✓</span>':''}</button>`).join('')}</div>`;
+}
+// Вибір країни закриває шторку.
+function lmSheetSet(c){
+  const S=_lmSheet;if(!S)return;
+  if(c&&!lmIsC(c))return;
+  closeAuthorSheet();
+  if(S.form){_addLm.ac[S.own]=c||'';renderSpPlaces();return;}
+  lmSetAuthorCountry(pd(),S.k,c,S.name);
+  saveToCloud(cur);
+  lmRefreshViews();
+}
+
+// ═══ «Яку країну лишити?» — об'єднання авторів з різними країнами ═══
+let _lmAsk=null;   // {items: [{c, name}], cb}
+function lmAskCountry(items,cb){
+  _lmAsk={items,cb};
+  lmCloseLayer('lm-askc');
+  lmOpen(`<div class="lm-scrim" onclick="lmAskClose()"></div>
+    <div class="lm-sheet lm-short" role="dialog" aria-label="Яку країну лишити"><div class="lm-grab"></div>
+      <div class="lm-top" style="border:none;min-height:44px;padding-left:14px">
+        <div class="lm-top-t">Яку країну лишити?</div>
+        <button class="lm-ico" aria-label="Закрити" onclick="lmAskClose()">✕</button>
+      </div>
+      <div class="lm-body" style="padding-top:0"><p class="lm-note">У цих авторів різні країни. Після об'єднання країна буде одна</p>
+        <div class="lm-list">${items.map((x,i)=>`<button class="lm-li" onclick="lmAskPick(${i})"><span class="lm-flag lm-fl">${lmFlag(x.c)}</span><span>${esc(lmCName(x.c))}<span class="lm-li2">${esc(x.name)}</span></span></button>`).join('')}</div>
+      </div></div>`,'lm-askc');
+}
+function lmAskClose(){_lmAsk=null;lmCloseLayer('lm-askc');}
+function lmAskPick(i){const a=_lmAsk;lmAskClose();if(a&&a.items[i])a.cb(a.items[i].c);}
+
+// ═══ автори: об'єднання ═══
+// Вибір імені в пропозиції — за парою ключів, а не за номером: після «Це різні
+// автори» пари зсуваються.
+let _lmAu={sel:[],keep:null,sugKeep:{}};
+const lmPairKey=p=>p[0].k+'\n'+p[1].k;
+function openAuthorsScreen(preKey){
+  _lmAu={sel:preKey?[preKey]:[],keep:null,sugKeep:{}};
+  lmCloseLayer('lm-authors');
+  lmOpen(`<div class="lm-full"><div class="lm-top">
+      <button class="lm-ico" aria-label="Назад" onclick="lmCloseLayer('lm-authors')">‹</button>
+      <div class="lm-top-t">Автори</div></div>
+    <div class="lm-body" id="lm-authors-body"></div><div id="lm-authors-foot"></div></div>`,'lm-authors');
+  lmRenderAuthors();
+}
+let _lmAuSug=[],_lmAuKeys=[],_lmAuMerged=[];
+function lmRenderAuthors(){
+  const el=document.getElementById('lm-authors-body');if(!el)return;
+  const d=pd(),A=lmAuthors(d),idx=lmAuthorIndex(d);
+  _lmAuSug=lmSuggestions(d,idx);
+  _lmAuKeys=[...idx.values()].sort((a,b)=>a.name.localeCompare(b.name,'uk'));
+  _lmAuMerged=Object.keys(A).filter(k=>A[k].to&&lmMain(d,k)!==k&&idx.has(lmMain(d,k)));
+  _lmAu.sel=_lmAu.sel.filter(k=>idx.has(k));
+  const line=e=>`${esc(e.name)} ${e.c?lmFl(e.c):''} <span class="lm-note">· ${e.books.length} ${bookWord(e.books.length)}</span>`;
+  el.innerHTML=`${_lmAuSug.map((p,i)=>{
+      const keep=_lmAu.sugKeep[lmPairKey(p)]||p[0].k;
+      return`<div class="lm-card"><div class="lm-card-t" style="margin-bottom:4px">Схоже, це один автор</div>
+        ${p.map((e,j)=>`<label class="lm-radio"><input type="radio" name="lm-sg${i}" ${keep===e.k?'checked':''} onchange="lmSugKeep(${i},${j})"><span>${line(e)}</span></label>`).join('')}
+        <div class="lm-note" style="margin:2px 0 8px">Вибране ім'я залишиться в бібліотеці</div>
+        <div class="lm-row"><button class="lm-mini pri" onclick="lmMergeSug(${i})">Об'єднати</button><button class="lm-mini" onclick="lmNotSameSug(${i})">Це різні автори</button></div>
+      </div>`;}).join('')}
+    ${_lmAuMerged.length?`<div class="lm-card"><div class="lm-card-t" style="margin-bottom:4px">Об'єднані</div>${_lmAuMerged.map((k,i)=>{
+      const main=idx.get(lmMain(d,k));
+      return`<div class="lm-row" style="justify-content:space-between"><span class="lm-note" style="color:var(--txt)">${esc(main.name)}<span class="lm-li2">також: ${esc(A[k].n||k)}</span></span><button class="lm-link" onclick="lmUnmergeAt(${i})">Роз'єднати</button></div>`;}).join('')}</div>`:''}
+    ${_lmAuKeys.length<2?`<p class="lm-note">Тут можна об'єднати автора, записаного в бібліотеці двома іменами (наприклад, кирилицею й латинкою). Для цього потрібні книги щонайменше двох авторів</p>`:''}
+    <div class="lm-lbl" style="margin:4px 0 0">Вибрати двох вручну</div>
+    <div class="lm-list">${_lmAuKeys.map((e,i)=>{const on=_lmAu.sel.indexOf(e.k)>=0;
+      return`<button class="lm-li${on?' sel':''}" onclick="lmAuToggle(${i})"><span class="lm-flag">${on?'☑':'☐'}</span><span>${line(e)}</span></button>`;}).join('')}</div>`;
+  const foot=document.getElementById('lm-authors-foot');
+  if(_lmAu.sel.length===2){
+    if(_lmAu.sel.indexOf(_lmAu.keep)<0)_lmAu.keep=_lmAu.sel[0];
+    foot.innerHTML=`<div class="lm-foot"><div class="lm-foot-row"><span class="lm-note">Лишити ім'я:</span>
+      ${_lmAu.sel.map((k,i)=>`<label class="lm-radio"><input type="radio" name="lm-keep" ${_lmAu.keep===k?'checked':''} onchange="_lmAu.keep=_lmAu.sel[${i}]"><span>${esc(idx.get(k).name)}</span></label>`).join('')}</div>
+      <button class="lm-btn" onclick="lmMergeSel()">Об'єднати</button></div>`;
+  }else foot.innerHTML='';
+}
+function lmAuToggle(i){
+  const e=_lmAuKeys[i];if(!e)return;
+  const at=_lmAu.sel.indexOf(e.k);
+  if(at>=0)_lmAu.sel.splice(at,1);else{_lmAu.sel.push(e.k);if(_lmAu.sel.length>2)_lmAu.sel.shift();}
+  lmRenderAuthors();
+}
+// Країни різні — спершу питаємо, яку лишити; країна лише в одного — вона й лишається.
+function lmDoMerge(keep,drop,c){
+  const d=pd(),idx=lmAuthorIndex(d);
+  const ke=idx.get(keep),de=idx.get(drop);if(!ke||!de)return;
+  if(c===undefined&&ke.c&&de.c&&ke.c!==de.c){
+    lmAskCountry([{c:ke.c,name:ke.name},{c:de.c,name:de.name}],x=>lmDoMerge(keep,drop,x));
+    return;
+  }
+  lmMerge(d,keep,drop,ke.name,de.name,c);
+  if(_lmSheet&&_lmSheet.k===drop)_lmSheet.k=keep;
+  _lmAu.sel=[];_lmAu.sugKeep={};
+  saveToCloud(cur);
+  lmRefreshViews();
+  if(_lmSheet)lmRenderSheet();
+}
+function lmSugKeep(i,j){const p=_lmAuSug[i];if(p&&p[j])_lmAu.sugKeep[lmPairKey(p)]=p[j].k;}
+function lmMergeSug(i){
+  const p=_lmAuSug[i];if(!p)return;
+  const keep=_lmAu.sugKeep[lmPairKey(p)]||p[0].k;
+  lmDoMerge(keep,p[0].k===keep?p[1].k:p[0].k);
+}
+function lmNotSameSug(i){
+  const p=_lmAuSug[i];if(!p)return;
+  lmNotSame(pd(),p[0].k,p[1].k,p[0].name,p[1].name);
+  saveToCloud(cur);lmRenderAuthors();
+}
+function lmMergeSel(){
+  if(_lmAu.sel.length!==2)return;
+  const keep=_lmAu.keep||_lmAu.sel[0];
+  lmDoMerge(keep,_lmAu.sel.find(k=>k!==keep));
+}
+function lmUnmergeAt(i){
+  const k=_lmAuMerged[i];if(!k)return;
+  lmUnmerge(pd(),k);
+  saveToCloud(cur);lmRefreshViews();
+  if(_lmSheet)lmRenderSheet();
+}
+
+// ═══ форма додавання книги ═══
+function lmSpSectionHTML(){
+  return`<div class="form-section">
+      ${_spSectionHdr('places',"🌍 Країна і місця подій <span style=\"font-weight:500;color:var(--txt-3)\">(необов'язково)</span>")}
+      <div id="sp-section-places" style="display:${_spSectionOpen.places?'':'none'}"><div id="sp-places-body"></div></div>
+    </div>`;
+}
+let _spAuthorT=null;
+function lmSpAuthorInput(){
+  clearTimeout(_spAuthorT);
+  _spAuthorT=setTimeout(()=>{if(_spSectionOpen.places)renderSpPlaces();},500);
+}
+const lmSpName=()=>((document.getElementById('sp-author')||{}).value||'').trim();
+const lmHas=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
+// Автор у формі з тим, що вже вибрано, але ще не записано:
+// {own: ключ імені, k: ключ автора, c: країна, same: ключ «того самого»}.
+function lmSpEff(d,name){
+  const own=authorKey(name),same=_addLm.same[own]||null;
+  const k=same?lmMain(d,same):lmMain(d,own);
+  const A=lmAuthors(d);
+  const c=lmHas(_addLm.ac,own)?(_addLm.ac[own]||null):lmCountryOf(d,k);
+  return{own,k,c,same};
+}
+function renderSpPlaces(){
+  const el=document.getElementById('sp-places-body');if(!el)return;
+  const d=pd(),name=lmSpName(),own=authorKey(name);
+  let country='',hint='';
+  _addLm.like=null;
+  if(!own){
+    country=`<span class="lm-note">Спершу впиши автора в «Дані книги»</span>`;
+  }else{
+    const e=lmSpEff(d,name),idx=lmAuthorIndex(d);
+    const pending=lmHas(_addLm.ac,own);
+    // Автор, схожий на іншого з бібліотеки: питаємо, чи це той самий.
+    if(!_addLm.hintNo[own]&&!e.same){
+      const sig=lmNameSig(name);
+      const like=[...idx.values()].find(x=>x.k!==e.k&&!lmIsNotSame(d,e.k,x.k)&&lmSameSig(sig,lmNameSig(x.name)));
+      if(like){
+        _addLm.like={own,k:like.k};
+        hint=`<div class="lm-hint">Схоже на автора <b>${esc(like.name)}</b> ${like.c?lmFl(like.c):''} з твоєї бібліотеки. Це той самий автор?
+          <div class="lm-row"><button class="lm-mini pri" onclick="lmSpSameAuthor()">Так, той самий</button><button class="lm-mini" onclick="lmSpNotSame()">Ні</button></div></div>`;
+      }
+    }
+    const sameLine=e.same?`<div class="lm-note" style="margin-bottom:6px">Той самий автор, що й <b>${esc((idx.get(e.k)||{name:''}).name)}</b></div>`:'';
+    if(e.c)country=`${sameLine}<div class="lm-row"><span class="lm-chip">${lmFl(e.c)} ${esc(lmCName(e.c))}</span><button class="lm-link" onclick="lmSpOpenSheet()">Змінити</button></div>
+      <div class="lm-note" style="margin-top:4px">${pending?'Запишеться разом із книгою':'Як у всіх книг автора'}</div>`;
+    else if(hint)country=`<span class="lm-note">Спершу відповідь нижче</span>`;
+    else{
+      country=`${sameLine}<div id="sp-wd"></div><button class="lm-chip add" onclick="lmSpOpenSheet()">+ Вибрати країну</button>`;
+      if(!pending)lmWikidata(name).then(c=>{
+        const box=document.getElementById('sp-wd');
+        const nowName=lmSpName(),nowOwn=authorKey(nowName);
+        if(!box||!c||nowOwn!==own||lmHas(_addLm.ac,own)||lmSpEff(pd(),nowName).c)return;
+        box.innerHTML=`<div class="lm-hint" style="margin-bottom:8px">За даними Вікідати: ${lmFl(c)} <b>${esc(lmCName(c))}</b>
+          <div class="lm-row"><button class="lm-mini pri" onclick="lmSpSetWd('${c}')">Поставити</button></div></div>`;
+      });
+    }
+  }
+  const places=_addLm.fic?LM_FIC_CHIP:_addLm.pl.map(p=>lmPlaceChip(p)).join('');
+  el.innerHTML=`<div class="flbl">Країна автора</div><div style="margin-bottom:12px">${country}</div>
+    ${hint?`<div style="margin-bottom:12px">${hint}</div>`:''}
+    <div class="flbl">Місця подій</div>
+    <div class="lm-chips">${places}<button class="lm-chip add" onclick="openPlacePicker('add')">${_addLm.pl.length||_addLm.fic?'Змінити':'+ Додати місце'}</button></div>`;
+}
+function lmSpOpenSheet(){const n=lmSpName();if(n)openAuthorSheet(n,true);}
+// «Так, той самий» — лише для того імені, про яке питали (ім'я могли змінити
+// за ті пів секунди, поки форма не перемалювалась).
+function lmSpSameAuthor(){
+  const name=lmSpName(),own=authorKey(name),like=_addLm.like;
+  if(!own||!like||like.own!==own){renderSpPlaces();return;}
+  const d=pd(),ke=lmAuthorIndex(d).get(like.k);if(!ke)return;
+  const cOwn=lmHas(_addLm.ac,own)?(_addLm.ac[own]||null):lmAuthorOf(d,name).c;
+  const done=c=>{
+    _addLm.same[own]=like.k;
+    if(c)_addLm.ac[own]=c;else delete _addLm.ac[own];
+    renderSpPlaces();
+  };
+  if(cOwn&&ke.c&&cOwn!==ke.c)lmAskCountry([{c:ke.c,name:ke.name},{c:cOwn,name}],done);
+  else done(ke.c?null:cOwn);
+}
+function lmSpNotSame(){
+  _addLm.hintNo[authorKey(lmSpName())]=1;renderSpPlaces();
+}
+function lmSpSetWd(c){
+  const name=lmSpName();
+  if(!name||!lmIsC(c))return;
+  _addLm.ac[authorKey(name)]=c;renderSpPlaces();
+}
+// Розпізнали книгу на Goodreads: її місця — підказкою у виборі місць. Форму
+// за цей час могли скинути — тоді підказка вже не для неї.
+async function lmSpGoodreads(places){
+  const t=_addLm;
+  t.gr=[];
+  const gr=await lmFromGoodreads(places);
+  if(_addLm!==t)return;
+  t.gr=gr;
+  if(_lmPick&&_lmPick.target==='add')lmRenderPickRes();
+}
+// Під час «Зарахувати книгу»: місця — в книгу; країна автора й «той самий
+// автор» — у сейв, саме зараз, разом із книгою.
+function lmApplyAdd(book){
+  if(_addLm.fic)book.fic=1;
+  else{const pl=lmCleanPlaces(_addLm.pl);if(pl.length)book.pl=pl;}
+  if(book.fic||book.pl)book.plu=Date.now();
+  const d=pd(),name=book.author||'',own=authorKey(name);if(!own)return;
+  const hasC=lmHas(_addLm.ac,own),c=hasC?_addLm.ac[own]:undefined;
+  const same=_addLm.same[own];
+  if(same){
+    const keep=lmMain(d,same),drop=lmMain(d,own);
+    const kn=(lmAuthorIndex(d).get(keep)||{}).name||(lmAuthors(d)[keep]||{}).n;
+    if(keep!==drop)lmMerge(d,keep,drop,kn,name,c);
+    else if(hasC)lmSetAuthorCountry(d,keep,c,kn);
+  }else if(hasC)lmSetAuthorCountry(d,lmMain(d,own),c,name);
+}
+
+// ═══ статистика ═══
+function renderMapsWidget(){
+  const el=document.getElementById('maps-widget');if(!el)return;
+  const d=pd();if(!d)return;
+  const lib=lmLibMine(d);
+  const A=lmAuthorStats(lib),T=lmTripStats(lib);
+  if(!A.m.size&&!T.m.size){
+    el.innerHTML=`<div class="lm-quiet">🌍 <b>Карти читання</b><br>Познач країну автора або місця подій у книзі, і тут з'являться карти</div>`;
+    return;
+  }
+  const rows=[...A.m.entries()].map(([c,e])=>[c,e.authors.size,e.books.length])
+    .sort((a,b)=>b[1]-a[1]||b[2]-a[2]||lmCName(a[0]).localeCompare(lmCName(b[0]),'uk'));
+  const top=rows.slice(0,5),rest=rows.slice(5).reduce((s,r)=>s+r[1],0),max=Math.max(1,top.length?top[0][1]:1,rest);
+  const nNone=A.none.size;
+  const authorsCard=A.m.size||nNone?`<div class="stats-chart-card">
+      <div class="lm-card-h" style="margin-bottom:6px"><span class="stats-chart-title" style="margin:0">Країни авторів</span>${A.m.size?`<button class="lm-link" onclick="openLitMap('authors')">Детальніше ›</button>`:''}</div>
+      <div class="lm-bars">${top.map(([c,v])=>`<div class="lm-bar"><span class="lm-bar-n">${lmFl(c)} ${esc(lmCName(c))}</span><span class="lm-bar-t"><span class="lm-bar-f" style="width:${v/max*100}%"></span></span><span class="lm-bar-v">${v}</span></div>`).join('')}
+      ${rest?`<div class="lm-bar"><span class="lm-bar-n">Інші</span><span class="lm-bar-t"><span class="lm-bar-f rest" style="width:${rest/max*100}%"></span></span><span class="lm-bar-v">${rest}</span></div>`:''}</div>
+      ${nNone?`<button class="lm-link" onclick="lmOpenNoCountry()">${nNone} ${pluralUA(nNone,'автор','автори','авторів')} без країни ›</button>`:''}
+    </div>`:'';
+  const tripsCard=`<div class="stats-chart-card">
+      <div class="lm-card-h" style="margin-bottom:6px"><span class="stats-chart-title" style="margin:0">Місця подій</span>${T.m.size?`<button class="lm-link" onclick="openLitMap('trips')">Детальніше ›</button>`:''}</div>
+      <div class="stat-tiles" style="margin-top:0">
+        <div class="stat-tile"><div class="stat-tile-val">${T.m.size}</div><div class="stat-tile-lbl">${pluralUA(T.m.size,'країна','країни','країн')}</div></div>
+        <div class="stat-tile"><div class="stat-tile-val">${T.cities.size}</div><div class="stat-tile-lbl">${pluralUA(T.cities.size,'місто','міста','міст')}</div></div>
+      </div>
+      ${T.m.size?`<div class="lm-mapbox mini" onclick="openLitMap('trips')" role="button" aria-label="Карта місць подій"><svg id="lm-mini" viewBox="0 0 360 190"></svg></div>`:''}
+    </div>`;
+  el.innerHTML=authorsCard+tripsCard;
+  if(T.m.size)lmLoadWorld().then(()=>{_lmMiniFail=false;lmDrawMini(T);}).catch(()=>{
+    _lmMiniFail=true;
+    const box=document.querySelector('#maps-widget .lm-mapbox.mini');
+    if(box)box.outerHTML=`<p class="lm-note">Карта не завантажилась. Перевір інтернет <button class="lm-link" data-retry onclick="renderMapsWidget()">Спробувати ще раз</button></p>`;
+  });
+}
+// Мала карта не завантажилась — повертається інтернет, пробуємо знову самі.
+let _lmMiniFail=false;
+window.addEventListener('online',()=>{if(_lmMiniFail)renderMapsWidget();});
+function lmOpenNoCountry(){
+  const d=pd(),idx=lmAuthorIndex(d);
+  const e=[...idx.values()].filter(x=>!x.c).sort((a,b)=>b.books.length-a.books.length||a.name.localeCompare(b.name,'uk'))[0];
+  if(e)openAuthorSheet(e.name);
+}
+
+// ═══ карта ═══
+const LM_W=360;
+function lmFlatProj(W){
+  const proj=d3.geoMercator().scale(W/(2*Math.PI)).translate([W/2,0]);
+  const y1=proj([0,80])[1],y2=proj([0,-56])[1];
+  proj.translate([W/2,-y1]).clipExtent([[0,0],[W,y2-y1]]);
+  return{proj,H:Math.round(y2-y1)};
+}
+const lmBucket=n=>n>=10?3:n>=3?2:1;
+// Назви токенів — повністю, не складені: theme-test.js шукає кожен var(--…) у темах.
+const LM_SHADES={authors:['var(--map-au1)','var(--map-au2)','var(--map-au3)'],trips:['var(--map-tr1)','var(--map-tr2)','var(--map-tr3)']};
+function lmFill(mode,n){return n?LM_SHADES[mode==='authors'?'authors':'trips'][lmBucket(n)-1]:'var(--map-land)';}
+function lmDrawMini(T){
+  const svgEl=document.getElementById('lm-mini');if(!svgEl||!_lmWorld)return;
+  const svg=d3.select(svgEl);svg.selectAll('*').remove();
+  const counts=new Map([...T.m].map(([c,e])=>[c,e.books.length]));
+  const {proj,H}=lmFlatProj(LM_W),path=d3.geoPath(proj);
+  svg.attr('viewBox',`0 0 ${LM_W} ${H}`);
+  svg.append('rect').attr('width',LM_W).attr('height',H).style('fill','var(--map-ocean)');
+  svg.append('g').selectAll('path').data(_lmWorld).join('path').attr('d',path)
+    .style('fill',d=>lmFill('trips',counts.get(d.id))).style('stroke','var(--map-line)').style('stroke-width',.3);
+  svg.append('g').selectAll('circle').data([...T.cities.values()]).join('circle')
+    .attr('cx',d=>proj([d.x,d.y])[0]).attr('cy',d=>proj([d.x,d.y])[1]).attr('r',2.2)
+    .style('fill','var(--map-dot)').style('stroke','var(--map-dot-line)').style('stroke-width',.7);
+}
+
+let _lmMap=null;   // {who:'me'|userId, nick, lib, mode, view, sel, rot, scale, centered}
+function openLitMap(mode,friend){
+  _lmMap={who:friend?friend.userId:'me',nick:friend?friend.nick:'',lib:friend?friend.lib:null,
+    mode:mode||'authors',view:'globe',sel:null,rot:null,scale:null,centered:null};
+  lmCloseLayer('lm-map');
+  lmOpen(`<div class="lm-full"><div class="lm-top">
+      <button class="lm-ico" aria-label="Назад" onclick="closeLitMap()">‹</button>
+      <div class="lm-top-t">Карти читання${friend?' · '+esc(friend.nick):''}</div></div>
+    <div class="lm-body" id="lm-map-body"></div></div>`,'lm-map');
+  lmRenderMap();
+}
+function closeLitMap(){_lmMap=null;lmCloseLayer('lm-map');}
+function lmMapLib(){return _lmMap.who==='me'?lmLibMine(pd()):(_lmMap.lib||[]);}
+function lmCounts(mode,lib){
+  if(mode==='authors'){const A=lmAuthorStats(lib);return new Map([...A.m].map(([c,e])=>[c,{n:e.authors.size,b:e.books.length}]));}
+  const T=lmTripStats(lib);return new Map([...T.m].map(([c,e])=>[c,{n:e.books.length,b:e.books.length}]));
+}
+// Країна, на якій відкривається глобус: найбільше позначок, далі — більше
+// книг, далі — перша за назвою.
+function lmTopCountry(counts){
+  let best=null;
+  counts.forEach((v,c)=>{
+    if(!best||v.n>best.v.n||(v.n===best.v.n&&(v.b>best.v.b||(v.b===best.v.b&&lmCName(c).localeCompare(lmCName(best.c),'uk')<0))))best={c,v};
+  });
+  return best&&best.c;
+}
+function lmSwitch(k,v){if(!_lmMap)return;_lmMap[k]=v;if(k==='mode')_lmMap.sel=null;lmRenderMap();}
+function lmRenderMap(){
+  const el=document.getElementById('lm-map-body');if(!el||!_lmMap)return;
+  const M=_lmMap,lib=lmMapLib();
+  const A=lmAuthorStats(lib),T=lmTripStats(lib);
+  if(M.sel&&!(M.mode==='authors'?A.m:T.m).has(M.sel))M.sel=null;
+  const nAuth=[...A.m.values()].reduce((s,e)=>s+e.authors.size,0);
+  const sum=M.mode==='trips'
+    ?`${T.m.size} ${pluralUA(T.m.size,'країна','країни','країн')} · ${T.cities.size} ${pluralUA(T.cities.size,'місто','міста','міст')}`
+    :`${A.m.size} ${pluralUA(A.m.size,'країна','країни','країн')} · ${nAuth} ${pluralUA(nAuth,'автор','автори','авторів')}`;
+  el.innerHTML=`${M.who!=='me'?`<div class="lm-banner">👀 Лише перегляд</div>`:''}
+    <div class="lm-seg"><button class="${M.mode==='authors'?'on':''}" onclick="lmSwitch('mode','authors')">Країни авторів</button><button class="${M.mode==='trips'?'on':''}" onclick="lmSwitch('mode','trips')">Місця подій</button></div>
+    <div class="lm-seg"><button class="${M.view==='flat'?'on':''}" onclick="lmSwitch('view','flat')">Плоска карта</button><button class="${M.view==='globe'?'on':''}" onclick="lmSwitch('view','globe')">Глобус</button></div>
+    <div style="font-weight:700;color:var(--txt-hi);font-size:14px">${sum}</div>
+    <div class="lm-mapbox" id="lm-mapbox"><svg id="lm-big" role="img" aria-label="Карта"></svg></div>
+    <div class="lm-under"><div class="lm-legend">${['1–2','3–9','10+'].map((t,i)=>`<span><i style="background:${LM_SHADES[M.mode==='authors'?'authors':'trips'][i]}"></i>${t}</span>`).join('')}<span>${M.mode==='authors'?'авторів':'книг'}</span>${M.mode==='trips'?'<span><i class="dot"></i>місто</span>':''}</div>
+      <div class="lm-zoom"><button aria-label="Наблизити" onclick="lmZoomBy(1.5)">+</button><button aria-label="Віддалити" onclick="lmZoomBy(1/1.5)">−</button><button aria-label="Повернути вигляд" onclick="lmResetView()">⟲</button></div></div>
+    <div id="lm-info" class="lm-info"></div>`;
+  lmRenderInfo();
+  const svgEl=document.getElementById('lm-big');
+  if(!_lmWorld){
+    svgEl.setAttribute('viewBox',`0 0 ${LM_W} ${LM_W}`);
+    svgEl.innerHTML=`<text x="${LM_W/2}" y="${LM_W/2}" text-anchor="middle" style="fill:var(--txt-3);font-size:13px">Завантажую карту…</text>`;
+    lmLoadWorld().then(()=>{_lmBigFail=false;if(_lmMap)lmDrawBig();}).catch(()=>{
+      _lmBigFail=true;
+      const box=document.getElementById('lm-mapbox');
+      if(box)box.outerHTML=`<p class="lm-note">Карта не завантажилась. Перевір інтернет <button class="lm-link" data-retry onclick="lmRenderMap()">Спробувати ще раз</button></p>`;
+    });
+  }else lmDrawBig();
+}
+let lmZoomBy=()=>{},lmResetView=()=>{};
+// Велика карта не завантажилась — повертається інтернет, пробуємо знову самі.
+let _lmBigFail=false;
+window.addEventListener('online',()=>{if(_lmBigFail&&_lmMap)lmRenderMap();});
+function lmDefaultRot(counts,lib){
+  const best=lmTopCountry(counts);
+  if(!best)return[-20,-30,0];
+  if(_lmMap.mode==='trips'){
+    const pts=[...lmTripStats(lib).cities.values()].filter(c=>c.c===best);
+    if(pts.length)return[-d3.mean(pts,p=>p.x),-d3.mean(pts,p=>p.y),0];
+  }
+  const f=_lmWorld.find(x=>x.id===best);if(!f)return[-20,-30,0];
+  let g=f.geometry;
+  // Франція — за материком, а не за Гвіаною: найбільша частина країни.
+  if(g.type==='MultiPolygon')g=g.coordinates.map(c=>({type:'Polygon',coordinates:c})).sort((a,b)=>d3.geoArea(b)-d3.geoArea(a))[0];
+  const [lon,lat]=d3.geoCentroid(g);return[-lon,-lat,0];
+}
+function lmDrawBig(){
+  const M=_lmMap,svgEl=document.getElementById('lm-big');if(!M||!svgEl||!_lmWorld)return;
+  const lib=lmMapLib(),cn=lmCounts(M.mode,lib);
+  const counts=new Map([...cn].map(([c,v])=>[c,v.n]));
+  const svg=d3.select(svgEl);svg.selectAll('*').remove();svg.on('.zoom',null);
+  const W=LM_W,flat=lmFlatProj(W),H=M.view==='globe'?W:flat.H;
+  const GLOBE=W*0.45;
+  const key=M.mode+'|'+M.who;
+  if(M.centered!==key){M.centered=key;M.rot=lmDefaultRot(cn,lib);M.scale=GLOBE;}
+  svg.attr('viewBox',`0 0 ${W} ${H}`);
+  const cityPts=M.mode==='trips'?[...lmTripStats(lib).cities.values()]:[];
+  const pick=d=>{if(counts.get(d.id)){M.sel=d.id;lmRenderInfo();paint();}};
+  let countries,dots,selG,path;
+  // Вибрана країна — світла лінія на темній облямівці (або навпаки): видно на
+  // будь-якому відтінку. Окремий шар поверх країн.
+  const selPath=()=>{const f=M.sel&&_lmWorld.find(x=>x.id===M.sel);return f?path(f):'';};
+  const paint=()=>selG.selectAll('path').data(M.sel?[0,1]:[]).join('path').attr('d',selPath)
+    .attr('vector-effect','non-scaling-stroke').style('fill','none').style('pointer-events','none').style('stroke-linejoin','round')
+    .style('stroke',i=>i?'var(--map-sel)':'var(--map-sel-halo)').style('stroke-width',i=>i?1.6:4);
+  if(M.view==='flat'){
+    const proj=flat.proj;path=d3.geoPath(proj);
+    const g=svg.append('g');
+    g.append('rect').attr('width',W).attr('height',H).style('fill','var(--map-ocean)');
+    countries=g.append('g').selectAll('path').data(_lmWorld).join('path').attr('d',path)
+      .style('fill',d=>lmFill(M.mode,counts.get(d.id))).attr('vector-effect','non-scaling-stroke')
+      .style('stroke','var(--map-line)').style('stroke-width',.4)
+      .style('cursor',d=>counts.get(d.id)?'pointer':'default').on('click',(e,d)=>pick(d));
+    selG=g.append('g').attr('class','lm-selg');
+    dots=g.append('g').selectAll('circle').data(cityPts).join('circle')
+      .attr('cx',d=>proj([d.x,d.y])[0]).attr('cy',d=>proj([d.x,d.y])[1]).attr('r',3)
+      .style('fill','var(--map-dot)').style('stroke','var(--map-dot-line)').style('stroke-width',.9).style('cursor','pointer')
+      .on('click',(e,d)=>{M.sel=d.c;lmRenderInfo();paint();});
+    dots.append('title').text(d=>d.n);
+    // Колесо миші гортає сторінку; наближення — двома пальцями, кнопками або Ctrl + колесо.
+    const zoom=d3.zoom().filter(e=>e.type==='wheel'?e.ctrlKey:!e.button).scaleExtent([1,12])
+      .translateExtent([[0,0],[W,H]]).on('zoom',e=>{
+        g.attr('transform',e.transform);
+        dots.attr('r',3/Math.sqrt(e.transform.k)).style('stroke-width',.9/e.transform.k);
+      });
+    svg.call(zoom);
+    lmZoomBy=k=>svg.transition().duration(250).call(zoom.scaleBy,k);
+    lmResetView=()=>svg.transition().duration(300).call(zoom.transform,d3.zoomIdentity);
+  }else{
+    const proj=d3.geoOrthographic().translate([W/2,H/2]).clipAngle(90);path=d3.geoPath(proj);
+    const sphere=svg.append('path').datum({type:'Sphere'}).style('fill','var(--map-ocean)').style('stroke','var(--map-line)');
+    countries=svg.append('g').selectAll('path').data(_lmWorld).join('path')
+      .style('fill',d=>lmFill(M.mode,counts.get(d.id))).style('stroke','var(--map-line)').style('stroke-width',.4)
+      .style('cursor',d=>counts.get(d.id)?'pointer':'default').on('click',(e,d)=>pick(d));
+    selG=svg.append('g').attr('class','lm-selg');
+    dots=svg.append('g').selectAll('circle').data(cityPts).join('circle').attr('r',3.4)
+      .style('fill','var(--map-dot)').style('stroke','var(--map-dot-line)').style('stroke-width',1).style('cursor','pointer')
+      .on('click',(e,d)=>{M.sel=d.c;lmRenderInfo();paint();});
+    dots.append('title').text(d=>d.n);
+    const lim=s=>Math.max(GLOBE*0.8,Math.min(GLOBE*6,s));
+    // Поки глобус тягнуть — грубіші кордони (_lmWorldLo): кадр у кілька разів
+    // швидший; відпустили — точні. Наближення (колесо, щипок) — завжди точні:
+    // інакше кордони блимали б на кожному кроці колеса.
+    let drag=false;
+    const update=()=>{
+      const lo=drag?'1':'0';if(svgEl.dataset.lo!==lo)svgEl.dataset.lo=lo;   // лише коли змінилось: зміна атрибута перераховує стилі
+      proj.rotate(M.rot).scale(M.scale);sphere.attr('d',path);
+      countries.attr('d',(d,i)=>path(drag&&_lmWorldLo?_lmWorldLo[i]:d));
+      selG.selectAll('path').attr('d',selPath);
+      const c=[-M.rot[0],-M.rot[1]];
+      dots.attr('display',d=>d3.geoDistance([d.x,d.y],c)<Math.PI/2-0.03?null:'none')
+        .attr('cx',d=>proj([d.x,d.y])[0]).attr('cy',d=>proj([d.x,d.y])[1]);
+    };
+    // Один жест на все: палець крутить глобус, два пальці (Ctrl + колесо) наближають.
+    let last=null;
+    const zoom=d3.zoom().filter(e=>e.type==='wheel'?e.ctrlKey:!e.button).scaleExtent([0.1,100])
+      .on('start',e=>{last=e.transform;})
+      .on('end',()=>{if(drag){drag=false;update();}})
+      .on('zoom',e=>{
+        const t=e.transform;
+        // Грубі кордони — лише коли тягнуть одним пальцем чи мишею; два пальці
+        // (щипок) — завжди точні, навіть у кадрі, де відстань між ними не змінилась.
+        const se=e.sourceEvent,two=!!(se&&se.touches&&se.touches.length>1);
+        if(last){
+          drag=!two&&t.k===last.k&&!(se&&se.type==='wheel');
+          if(t.k!==last.k)M.scale=lim(M.scale*t.k/last.k);
+          else{const k=0.25*GLOBE/M.scale;M.rot=[M.rot[0]+(t.x-last.x)*k,Math.max(-85,Math.min(85,M.rot[1]-(t.y-last.y)*k)),0];}
+        }
+        last=t;update();
+      });
+    svg.call(zoom);
+    lmZoomBy=k=>{M.scale=lim(M.scale*k);update();};
+    lmResetView=()=>{M.rot=lmDefaultRot(cn,lib);M.scale=GLOBE;update();};
+    update();
+  }
+  paint();
+}
+function lmRenderInfo(){
+  const M=_lmMap,box=document.getElementById('lm-info');if(!box||!M)return;
+  if(!M.sel){box.innerHTML=`<p class="lm-note">Торкнись виділеної країни, щоб побачити книги</p>`;return;}
+  const lib=lmMapLib();
+  const close=`<button class="lm-ico" style="margin-left:auto;font-size:16px;color:var(--txt-2)" aria-label="Закрити" onclick="lmCloseInfo()">✕</button>`;
+  let head,list;
+  if(M.mode==='authors'){
+    const e=lmAuthorStats(lib).m.get(M.sel);if(!e){box.innerHTML='';return;}
+    head=`${e.authors.size} ${pluralUA(e.authors.size,'автор','автори','авторів')}, ${e.books.length} ${bookWord(e.books.length)}`;
+    list=e.books.map(b=>`<div class="lm-li"><span style="min-width:0">${esc(b.t)}<span class="lm-li2">${esc(b.a)}</span></span></div>`).join('');
+  }else{
+    const e=lmTripStats(lib).m.get(M.sel);if(!e){box.innerHTML='';return;}
+    head=`${e.books.length} ${bookWord(e.books.length)}${e.cities.size?`, ${e.cities.size} ${pluralUA(e.cities.size,'місто','міста','міст')}`:''}`;
+    list=e.books.map(b=>{const cs=b.pl.filter(p=>p.c===M.sel&&p.g).map(p=>p.n);
+      return`<div class="lm-li"><span style="min-width:0">${esc(b.t)}<span class="lm-li2">${cs.length?esc(cs.join(', ')):'Без міста'}</span></span></div>`;}).join('');
+  }
+  box.innerHTML=`<div class="lm-card"><div class="lm-row"><div class="lm-card-t">${lmFl(M.sel)} ${esc(lmCName(M.sel))} <span class="lm-note">· ${head}</span></div>${close}</div><div class="lm-list">${list}</div></div>`;
+  // Картку підтягуємо знизу, але карта лишається видимою від верху: інакше на
+  // малому телефоні тягнення пальцем по карті крутило б глобус, а не сторінку.
+  const body=document.getElementById('lm-map-body'),mb=document.getElementById('lm-mapbox');
+  if(body){
+    const br=body.getBoundingClientRect(),need=body.scrollTop+box.getBoundingClientRect().bottom-br.bottom+12;
+    const cap=mb?body.scrollTop+mb.getBoundingClientRect().top-br.top-8:need;
+    body.scrollTo({top:Math.max(0,Math.min(need,cap)),behavior:'smooth'});
+  }
+}
+function lmCloseInfo(){
+  if(!_lmMap)return;_lmMap.sel=null;lmRenderInfo();
+  if(window.d3)d3.select('#lm-big').selectAll('.lm-selg path').remove();
+  const body=document.getElementById('lm-map-body');if(body)body.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ═══ друзі ═══
+async function openFriendMaps(id){
+  const f=(friendsData.friends||[]).find(x=>x.userId===id);if(!f||!me||!me.token)return;
+  const fr={userId:f.userId,nick:f.nick,lib:[]};
+  openLitMap('authors',fr);
+  const body=document.getElementById('lm-map-body');
+  if(body)body.innerHTML=`<p class="lm-note">Завантажую карти…</p>`;
+  const r=await _api({action:'friendMaps',userId:me.userId,token:me.token,other:f.userId});
+  if(!_lmMap||_lmMap.who!==f.userId)return;
+  if(!r||!r.ok){
+    if(body)body.innerHTML=`<p class="lm-note">Карти не завантажились${r&&r.error==='network'?'. Перевір інтернет':''} <button class="lm-link" onclick="openFriendMaps(_lmMap&&_lmMap.who)">Спробувати ще раз</button></p>`;
+    return;
+  }
+  _lmMap.lib=lmFriendLib(r.maps);
+  if(!_lmMap.lib.length){if(body)body.innerHTML=`<p class="lm-note">Карт поки немає. Тут з'являться країни авторів і місця подій, щойно ${esc(f.nick)} їх позначить</p>`;return;}
+  lmRenderMap();
+}
+
+// ═══ налаштування ═══
+function lmSettingsHTML(){
+  if(!me||me.guest)return'';
+  const d=pd(),on=!d.mapsOff;
+  return`<div style="text-align:left;margin-top:16px;padding-top:14px;border-top:1px solid rgba(var(--ink),.08)">
+      <div class="flbl">Карти читання</div>
+      <button class="lm-li" id="ps-maps" style="border:none;padding:0" onclick="toggleMapsShare()">
+        <span>Показувати мої карти друзям<span class="lm-li2">${on?'Друзі бачать країни авторів і місця подій':'Карти бачиш лише ти'}</span></span>
+        <span class="lm-switch ${on?'on':''}" aria-hidden="true"></span></button>
+    </div>`;
+}
+function toggleMapsShare(){
+  const d=pd();
+  d.mapsOff=d.mapsOff?0:1;   // саме 0, а не видалене поле
+  d.mapsAt=lmTs(d.mapsAt);   // при злитті копій перемагає пізніше перемикання
+  const b=document.getElementById('ps-maps');
+  if(b)b.outerHTML=lmSettingsHTML().replace(/^[\s\S]*?(<button class="lm-li" id="ps-maps")/,'$1').replace(/<\/div>\s*$/,'');
+  saveToCloud(cur);
+}
+// Esc закриває верхній шар карт.
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape'||!document.querySelector('.lm-ov'))return;
+  const top=[...document.querySelectorAll('.lm-ov')].pop();
+  if(top.classList.contains('lm-pick'))lmPickCancel();
+  else if(top.classList.contains('lm-author'))closeAuthorSheet();
+  else if(top.classList.contains('lm-askc'))lmAskClose();
+  else if(top.classList.contains('lm-map'))closeLitMap();
+  else top.remove();
+});
+
 </script>
 </body>
 </html>
