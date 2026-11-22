@@ -828,6 +828,9 @@ select option{background:var(--panel);color:var(--txt-hi);}
 .lm-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px;}
 .lm-legend i.dot{border-radius:50%;width:10px;height:10px;background:var(--map-dot);box-shadow:0 0 0 1.5px var(--map-dot-line);}
 .lm-info .lm-li{cursor:default;}
+.lm-info button.lm-au{cursor:pointer;}
+.lm-info .lm-au b{color:var(--txt-hi);font-weight:700;}
+.lm-info .lm-bk{padding-left:22px;}
 .lm-bars{display:flex;flex-direction:column;gap:8px;}
 .lm-bar{display:flex;align-items:center;gap:8px;font-size:12px;}
 .lm-bar-n{width:128px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt-2);font-weight:600;}
@@ -7199,7 +7202,7 @@ function lmScript(src){
   });
   return _lmLoads[src];
 }
-let _lmWorld=null,_lmWorldP=null,_lmWorldLo=null;
+let _lmWorld=null,_lmWorldP=null,_lmWorldLo=null,_lmWorldErr='net';
 // Грубіші кордони для глобуса, поки його тягнуть: кожна четверта точка.
 function lmLowDetail(features){
   const ring=r=>{if(r.length<=12)return r;const o=r.filter((p,i)=>i%4===0);o.push(r[r.length-1]);return o.length>=4?o:r;};
@@ -7216,12 +7219,17 @@ function lmLoadWorld(){
     _lmWorld=topojson.feature(t,t.objects.countries).features;
     _lmWorldLo=lmLowDetail(_lmWorld);
     return _lmWorld;
-  })().catch(e=>{_lmWorldP=null;throw e;});
+  })().catch(e=>{_lmWorldP=null;_lmWorldErr=lmErrKind(e);throw e;});
   return _lmWorldP;
 }
 // Міста: [geonameid, укр. назва або '', англ., країна, широта, довгота, тис. жителів,
 // регіон — лише коли назва в країні повторюється (три Спрингфілди в США)]
-let _lmCities=null,_lmCitiesP=null,_lmCitiesErr=false;
+let _lmCities=null,_lmCitiesP=null,_lmCitiesErr=false;   // false | 'net' | 'srv'
+// Чому не завантажилось: нема мережі (fetch не дійшов — TypeError, або браузер
+// офлайн) — тоді радимо перевірити інтернет; інакше (404, помилка сервера, биті
+// дані) — без цієї поради, вона б лише заплутала.
+const lmErrKind=e=>(!navigator.onLine||(e&&e.name==='TypeError'))?'net':'srv';
+const lmFailMsg=(what,kind)=>what+(kind==='net'?'. Перевір інтернет':'');
 function lmLoadCities(){
   if(_lmCities)return Promise.resolve(_lmCities);
   if(!_lmCitiesP)_lmCitiesP=fetch('geo/cities.json').then(r=>{if(!r.ok)throw new Error('cities '+r.status);return r.json();})
@@ -7230,7 +7238,7 @@ function lmLoadCities(){
         r:typeof x[7]==='string'?x[7]:'',ku:lmNorm(x[1]),ke:lmNorm(x[2])}));
       _lmCitiesErr=false;
       return _lmCities;
-    }).catch(e=>{_lmCitiesP=null;_lmCitiesErr=true;throw e;});
+    }).catch(e=>{_lmCitiesP=null;_lmCitiesErr=lmErrKind(e);throw e;});
   return _lmCitiesP;
 }
 const lmCityName=x=>x.uk||x.en;
@@ -7748,7 +7756,7 @@ function lmRenderPickRes(){
   const countries=lmFindCountries(q).slice(0,3);
   P.res=cities.map(city=>({type:'city',city})).concat(countries.map(c=>({type:'country',c})));
   const note=_lmCities?'':_lmCitiesErr
-    ?`<p class="lm-note">Список міст не завантажився. Перевір інтернет <button class="lm-link" data-retry onclick="lmRetryCities()">Спробувати ще раз</button></p>`
+    ?`<p class="lm-note">${lmFailMsg('Список міст не завантажився',_lmCitiesErr)} <button class="lm-link" data-retry onclick="lmRetryCities()">Спробувати ще раз</button></p>`
     :`<p class="lm-note">Завантажую список міст…</p>`;
   if(!P.res.length){box.innerHTML=note||`<p class="lm-note">Такого міста немає в списку: тут лише міста від 100 000 жителів. Можна вибрати країну</p>`;return;}
   box.innerHTML=note+`<div class="lm-list">${P.res.map((r,i)=>{
@@ -8167,7 +8175,7 @@ function renderMapsWidget(){
   if(T.m.size)lmLoadWorld().then(()=>{_lmMiniFail=false;lmDrawMini(T);}).catch(()=>{
     _lmMiniFail=true;
     const box=document.querySelector('#maps-widget .lm-mapbox.mini');
-    if(box)box.outerHTML=`<p class="lm-note">Карта не завантажилась. Перевір інтернет <button class="lm-link" data-retry onclick="renderMapsWidget()">Спробувати ще раз</button></p>`;
+    if(box)box.outerHTML=`<p class="lm-note">${lmFailMsg('Карта не завантажилась',_lmWorldErr)} <button class="lm-link" data-retry onclick="renderMapsWidget()">Спробувати ще раз</button></p>`;
   });
 }
 // Мала карта не завантажилась — повертається інтернет, пробуємо знову самі.
@@ -8257,7 +8265,7 @@ function lmRenderMap(){
     lmLoadWorld().then(()=>{_lmBigFail=false;if(_lmMap)lmDrawBig();}).catch(()=>{
       _lmBigFail=true;
       const box=document.getElementById('lm-mapbox');
-      if(box)box.outerHTML=`<p class="lm-note">Карта не завантажилась. Перевір інтернет <button class="lm-link" data-retry onclick="lmRenderMap()">Спробувати ще раз</button></p>`;
+      if(box)box.outerHTML=`<p class="lm-note">${lmFailMsg('Карта не завантажилась',_lmWorldErr)} <button class="lm-link" data-retry onclick="lmRenderMap()">Спробувати ще раз</button></p>`;
     });
   }else lmDrawBig();
 }
@@ -8378,7 +8386,18 @@ function lmRenderInfo(){
   if(M.mode==='authors'){
     const e=lmAuthorStats(lib).m.get(M.sel);if(!e){box.innerHTML='';return;}
     head=`${e.authors.size} ${pluralUA(e.authors.size,'автор','автори','авторів')}, ${e.books.length} ${bookWord(e.books.length)}`;
-    list=e.books.map(b=>`<div class="lm-li"><span style="min-width:0">${esc(b.t)}<span class="lm-li2">${esc(b.a)}</span></span></div>`).join('');
+    // Книги за авторами (рішення Надії): «Автор · N книг», під ним його книги.
+    // Більше книг — вище, далі за абеткою; об'єднані — одним автором (ключ ak).
+    const g=new Map();
+    e.books.forEach(b=>{if(!g.has(b.ak))g.set(b.ak,{name:b.a,books:[]});g.get(b.ak).books.push(b);});
+    const groups=[...g.values()].sort((a,b)=>b.books.length-a.books.length||a.name.localeCompare(b.name,'uk'));
+    const own=M.who==='me';
+    _lmInfoAu=groups.map(x=>x.name);
+    list=groups.map((x,j)=>{
+      const n=x.books.length,t=`<span style="min-width:0"><b>${esc(x.name)}</b> · ${n} ${bookWord(n)}</span>`;
+      return(own?`<button class="lm-li lm-au" onclick="lmInfoAuthor(${j})">${t}</button>`:`<div class="lm-li lm-au">${t}</div>`)
+        +x.books.map(b=>`<div class="lm-li lm-bk"><span style="min-width:0">${esc(b.t)}</span></div>`).join('');
+    }).join('');
   }else{
     const e=lmTripStats(lib).m.get(M.sel);if(!e){box.innerHTML='';return;}
     head=`${e.books.length} ${bookWord(e.books.length)}${e.cities.size?`, ${e.cities.size} ${pluralUA(e.cities.size,'місто','міста','міст')}`:''}`;
@@ -8395,6 +8414,9 @@ function lmRenderInfo(){
     body.scrollTo({top:Math.max(0,Math.min(need,cap)),behavior:'smooth'});
   }
 }
+// Тап на автора в картці країни — «Країна автора» (лише на своїй карті).
+let _lmInfoAu=[];
+function lmInfoAuthor(j){const n=_lmInfoAu[j];if(n&&_lmMap&&_lmMap.who==='me')openAuthorSheet(n);}
 function lmCloseInfo(){
   if(!_lmMap)return;_lmMap.sel=null;lmRenderInfo();
   if(window.d3)d3.select('#lm-big').selectAll('.lm-selg path').remove();
