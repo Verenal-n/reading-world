@@ -444,6 +444,9 @@ a.q-gr{color:inherit;}
 .star-rating{display:flex;gap:2px;justify-content:center;}
 .star-slot{position:relative;font-size:24px;line-height:1;color:rgba(var(--ink),.15);}
 .star-rating.editable .star-slot{cursor:pointer;}
+.star-rating.editable{gap:0;}
+.star-hit{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;}
+.star-glyph{position:relative;line-height:1;}
 .star-fg{position:absolute;left:0;top:0;overflow:hidden;white-space:nowrap;color:var(--gold-solid);}
 .ach-card{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(var(--acc),.12),rgba(var(--pri-rgb),.08));border:1px solid rgba(var(--acc),.25);border-radius:12px;padding:12px;cursor:pointer;transition:background .15s;}
 .ach-card:hover{background:linear-gradient(135deg,rgba(var(--acc),.18),rgba(var(--pri-rgb),.12));}
@@ -524,11 +527,35 @@ a.q-gr{color:inherit;}
 select option{background:var(--panel);color:var(--txt-hi);}
 .ppill{background:rgba(var(--acc),.15);color:var(--accent);font-size:12px;font-weight:600;padding:8px;border-radius:10px;text-align:center;margin-bottom:10px;}
 .sp-error{background:rgba(var(--bad-rgb),.14);border:1px solid rgba(var(--bad-rgb),.35);color:var(--bad);font-size:12px;font-weight:600;padding:9px 12px;border-radius:10px;text-align:center;margin-bottom:10px;}
-.bd-hero{position:relative;margin:-1.5rem -1.5rem 14px;padding:26px 1.5rem 14px;display:flex;justify-content:center;overflow:hidden;}
-.bd-hero-bg{position:absolute;inset:-25%;background-size:cover;background-position:center;filter:blur(30px) saturate(150%) brightness(.65);transform:scale(1.15);}
-.bd-hero-fade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(var(--panel-rgb),0) 45%,var(--panel) 100%);}
+/* Картка книги — компактна: прокрутка всередині, липкий низ із «Зберегти» й 🗑️. */
+.modal-box.bd-modal{padding:0;display:flex;flex-direction:column;overflow:hidden;}
+.bd-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:14px 16px 8px;}
+.bd-x{position:absolute;top:2px;right:2px;width:44px;height:44px;background:none;border:none;color:var(--accent);font-size:18px;cursor:pointer;z-index:2;font-family:inherit;}
+.bd-head{display:flex;gap:12px;align-items:flex-start;margin-bottom:10px;}
+.bd-cov{flex-shrink:0;padding-top:2px;}
+.bd-meta{flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch;}
+.bd-title{font-size:15px;font-weight:700;color:var(--txt-hi);line-height:1.3;padding-right:30px;overflow-wrap:anywhere;}
+.bd-meta .bd-author{margin:0;padding:0;text-align:left;justify-content:flex-start;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.bd-author-ro{font-size:13px;color:var(--txt-2);margin:4px 0;}
+.bd-q{font-size:11px;color:var(--ok);margin-bottom:4px;}
+.bd-stars{display:flex;margin:2px 0;}
+.bd-sub{font-size:11px;color:var(--txt-2);}
+.bd-row{display:flex;align-items:center;gap:6px;width:100%;min-height:44px;padding:0;margin:0;background:none;border:none;font-family:inherit;font-size:13px;color:var(--txt);text-align:left;cursor:pointer;}
+div.bd-row{cursor:default;}
+.bd-pl-t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bd-pl-go{color:var(--txt-2);font-size:18px;line-height:1;}
+.bd-cover-big{display:block;max-width:100%;max-height:46vh;margin:0 auto 10px;border-radius:8px;box-shadow:0 8px 20px rgba(var(--shadow),.4);}
+.bd-2col{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.bd-2col .finput{min-height:44px;padding:9px 8px;text-overflow:ellipsis;}
+.bd-modal .finput{min-height:44px;}
+.bd-modal .goal-tab{min-height:44px;color:var(--txt-2);}
+.bd-modal .goal-tab.act{color:var(--txt-hi);}
+.bd-ro{font-size:12px;color:var(--txt-2);margin-bottom:10px;}
+.bd-addrev{width:100%;min-height:44px;background:none;border:1px dashed rgba(var(--acc),.45);border-radius:10px;color:var(--accent);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:4px;}
+.bd-foot{flex-shrink:0;display:flex;gap:8px;align-items:center;padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid rgba(var(--ink),.1);background:var(--panel);}
+.bd-foot .bd-save{flex:1;min-height:44px;padding:0 12px;font-size:13px;}
 .bd-cover-tap{position:relative;cursor:pointer;z-index:1;}
-.bd-delete-btn{display:block;margin:6px auto 0;width:34px;height:34px;border-radius:50%;background:rgba(var(--ink),.06);border:1px solid rgba(var(--ink),.12);color:var(--txt-3);font-size:14px;cursor:pointer;}
+.bd-delete-btn{display:block;margin:0;width:44px;height:44px;flex-shrink:0;border-radius:50%;background:rgba(var(--ink),.06);border:1px solid rgba(var(--ink),.12);color:var(--txt-2);font-size:14px;cursor:pointer;}
 .bd-delete-btn:hover{background:rgba(var(--bad-rgb),.15);color:var(--bad);border-color:rgba(var(--bad-rgb),.3);}
 /* padding лише ЗВЕРХУ: знизу ті 14 px лежали під останньою полицею й
    виглядали як чорна смуга під шафою. overflow:hidden — щоб полиця не
@@ -682,8 +709,8 @@ select option{background:var(--panel);color:var(--txt-hi);}
 .ach-toast .att-go{display:block;font-size:10px;font-weight:600;color:var(--txt-4);margin-top:4px;}
 /* Поле відгуку. resize:vertical — щоб можна було розтягнути, але не вбік:
    горизонтальне розтягування рве верстку модалки. */
-.bd-rev{min-height:92px;max-height:240px;resize:vertical;line-height:1.5;font-family:inherit;}
-.bd-rev-count{font-size:10.5px;color:var(--txt-4);font-variant-numeric:tabular-nums;}
+.bd-rev{min-height:0;max-height:180px;resize:none;overflow-y:auto;line-height:1.5;font-family:inherit;}
+.bd-rev-count{font-size:11px;color:var(--txt-2);font-variant-numeric:tabular-nums;}
 .bd-rev-count.full{color:var(--gold);}
 /* pre-wrap — щоб абзаци, які людина написала, лишились абзацами.
    overflow-wrap — щоб довге слово без пробілів не розсунуло модалку. */
@@ -843,7 +870,6 @@ select option{background:var(--panel);color:var(--txt-hi);}
 .lm-banner{display:flex;align-items:center;gap:8px;background:rgba(var(--gold-rgb),.12);border:1px solid rgba(var(--gold-rgb),.3);border-radius:10px;padding:4px 4px 4px 12px;font-size:13px;color:var(--txt);}
 .bd-author{display:block;margin:0 auto 8px;background:none;border:none;color:var(--accent);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;min-height:44px;padding:0 8px;}
 .bd-author .lm-chip{min-height:26px;padding:0 8px;font-size:11px;margin-left:4px;}
-.bd-places{margin-bottom:12px;}
 </style>
 <script>
 /* Тема ставиться до першого малювання, окремим скриптом у <head>: основний
@@ -1454,7 +1480,7 @@ function updSpLangAuto(){
   const sel=document.getElementById('sp-lang');if(!sel||!sel.options.length)return;
   const t=(document.getElementById('sp-book')||{}).value||'';
   sel.options[0].textContent=t.trim()
-    ? LANG_META[detectBookLanguage(t)].label+' (визначено автоматично)'
+    ? LANG_META[detectBookLanguage(t)].label+' (авто)'
     : 'Визначено автоматично';
 }
 function langBreakdown(books){
@@ -1830,7 +1856,9 @@ function setWrapYear(y){_wrapYear=y;renderYearWrapWidget();}
 // Перемикача «Моє / Родина разом» у інтерфейсі немає (див. renderYearWrapWidget),
 // тому й сеттера теж — гілка _wrapScope==='family' лишається робочою й чекає
 // на етап «Друзі».
-function computeYearWrap(books,yearKey){
+// d — сейв, чиї об'єднання авторів брати (для книг «Родина разом» — сейв
+// власника книги, _ownerId). Без нього — як записано в книзі.
+function computeYearWrap(books,yearKey,d){
   const yearBooks=books.filter(b=>bookPeriodKeys(b).year===yearKey);
   const count=yearBooks.length;
   if(!count)return null;
@@ -1849,12 +1877,19 @@ function computeYearWrap(books,yearKey){
   }
   const favLang=langBreakdown(yearBooks)[0]||null;
   const favGenre=genreBreakdown(yearBooks)[0]||null;
+  // Улюблений автор — за головним автором (як «Фанат автора»), з його ім'ям.
   const authorCounts={};
   yearBooks.forEach(b=>{
     const a=(b.author||'').trim();if(!a)return;
-    const key=a.toLowerCase();
-    if(!authorCounts[key])authorCounts[key]={name:a,count:0};
-    authorCounts[key].count++;
+    const own=authorKey(a);if(!own)return;
+    const dd=(b._ownerId&&state.players[b._ownerId])||d;
+    const key=dd?lmMain(dd,own):own;
+    const e=authorCounts[key]||(authorCounts[key]={name:'',count:0});
+    // ім'я головного автора: з його запису, інакше з його ж книги, інакше перше, що трапилось
+    const r=dd&&lmAuthors(dd)[key];
+    if(r&&r.n&&r.n!==key)e.name=r.n;
+    else if(own===key||!e.name)e.name=a;
+    e.count++;
   });
   const favAuthor=Object.values(authorCounts).sort((a,b)=>b.count-a.count)[0]||null;
   const monthCounts=Array(12).fill(0);
@@ -1889,7 +1924,7 @@ function renderYearWrapWidget(){
   const books=_wrapScope==='family'
     ?PLAYERS.flatMap(p=>((state.players[p.id]&&state.players[p.id].books)||[]).map((b,idx)=>({...b,_ownerId:p.id,_ownerIdx:idx})))
     :(d.books||[]).map((b,idx)=>({...b,_ownerId:cur,_ownerIdx:idx}));
-  const wrap=computeYearWrap(books,_wrapYear);
+  const wrap=computeYearWrap(books,_wrapYear,d);
   const isCurrentYear=_wrapYear===curYearKey();
   const controls=`<div class="stats-chart-hdr">
     <select class="stats-year-sel" onchange="setWrapYear(this.value)">
@@ -2006,11 +2041,15 @@ function showChartTip(evt,value){
 function purchaseWord(n){return pluralUA(n,'покупка','покупки','покупок');}
 function pokeWord(n){return pluralUA(n,'покемона','покемони','покемонів');}
 function locWord(n){return pluralUA(n,'локація','локації','локацій');}
+// Автор — за ключем (authorKey: крапки, апостроф, пробіли) і після всіх
+// об'єднань (lmMain): «Isaac Asimov» + «Айзек Азімов» — один автор. Ключ лише
+// зливає написання, ніколи не розділяє, тож прогрес ачівки може лише зрости.
 function maxByAuthor(d){
   const counts={};
   (d.books||[]).forEach(b=>{
-    const a=(b.author||'').trim().toLowerCase();
-    if(!a)return;
+    const own=authorKey(b.author);
+    if(!own)return;
+    const a=lmMain(d,own);
     counts[a]=(counts[a]||0)+1;
   });
   const vals=Object.values(counts);
@@ -2060,6 +2099,21 @@ const ACHIEVEMENTS=[
     valueFn:maxByAuthor,
     reward:{pid:144,name:'Articuno'},
     desc:t=>`Прочитати ${t} ${bookWord(t)} одного автора`},
+  // ── карти читання ── (key НЕ перейменовувати: він лежить у прогресі ачівок)
+  // Країна — у головного автора (після об'єднань); автор без країни не рахується.
+  {key:'authorCountries',title:'Мандрівник',emoji:'🧳',unit:'країн авторів',tiers:[5,10,20,35],
+    valueFn:d=>lmAuthorStats(lmLibMine(d)).m.size,
+    reward:{pid:380,name:'Latias'},
+    desc:t=>`Прочитати авторів із ${t} різних країн`},
+  // Різні країни в місцях подій усіх книг; місця вигаданого світу на карту не йдуть — і тут ні.
+  {key:'placeCountries',title:'Навколо світу',emoji:'✈️',unit:'країн у місцях подій',tiers:[5,10,25,50],
+    valueFn:d=>lmTripStats(lmLibMine(d)).m.size,
+    reward:{pid:381,name:'Latios'},
+    desc:t=>`Прочитати книги, події яких відбуваються в ${t} різних країнах`},
+  {key:'fictionWorlds',title:'Світобудівник',emoji:'🪐',unit:'книг у вигаданому світі',tiers:[10,25,50,100],
+    valueFn:d=>(d.books||[]).filter(b=>b&&b.fic).length,
+    reward:{pid:251,name:'Celebi'},
+    desc:t=>`Прочитати ${t} ${bookWord(t)} про вигаданий світ`},
   // ── жанри й мови ──
   // П'ять жанрових: кожна дає обої свого настрою. Поріг — 5 книг на
   // другій полиці; перша (3) це рання галочка, третя (10) довга мета.
@@ -3492,7 +3546,7 @@ function buildPublicSummary(d){
   const thisYear=new Date().getFullYear();
   // Тільки поточний і минулий рік — щоб стовпчик не розростався.
   [String(thisYear),String(thisYear-1)].forEach(y=>{
-    const w=computeYearWrap(books,y);
+    const w=computeYearWrap(books,y,d);
     if(w)wraps[y]=slimWrap(w);
   });
   const mKey=curMonthKey();
@@ -5358,9 +5412,12 @@ function starRatingHTML(rating,editable,onClickFnName){
   let stars='';
   for(let i=1;i<=5;i++){
     const fillPct=Math.max(0,Math.min(100,(rating-(i-1))*100));
-    stars+=`<span class="star-slot" ${editable?`onclick="${onClickFnName}(event,${i})"`:''}>
-      <span class="star-bg">★</span><span class="star-fg" style="width:${fillPct}%">★</span>
-    </span>`;
+    // Зірка, якою ставлять оцінку, — ціль 44×44 під палець; половинки по 22 px
+    // (ліва — пів зірки, див. _starClickIsHalf). Зірки для перегляду — як були.
+    const glyph=`<span class="star-bg">★</span><span class="star-fg" style="width:${fillPct}%">★</span>`;
+    stars+=editable
+      ?`<span class="star-slot star-hit" role="button" aria-label="${i} з 5" onclick="${onClickFnName}(event,${i})"><span class="star-glyph">${glyph}</span></span>`
+      :`<span class="star-slot">${glyph}</span>`;
   }
   return`<div class="star-rating ${editable?'editable':''}">${stars}</div>`;
 }
@@ -5702,11 +5759,12 @@ function _computeShelfGroups(withIdx,sortBy){
       .map(([label,items])=>({label,cls:'',items}));
   }
   if(sortBy==='author'){
-    const groups={};
+    // Полиця — головний автор (після об'єднань і з тим самим ключем), з його ім'ям.
+    const d=pd()||{},idx=lmAuthorIndex(d),groups={};
     withIdx.forEach(({b,i})=>{
-      const raw=(b.author||'').trim();
-      const key=raw?raw.toLowerCase():'__unknown__';
-      if(!groups[key])groups[key]={label:raw||'Невідомий автор',items:[]};
+      const own=authorKey(b.author);
+      const key=own?lmMain(d,own):'__unknown__';
+      if(!groups[key])groups[key]={label:own?((idx.get(key)||{}).name||(b.author||'').trim()):'Невідомий автор',items:[]};
       groups[key].items.push({b,i});
     });
     return Object.values(groups).sort((a,b)=>b.items.length-a.items.length)
@@ -6118,6 +6176,12 @@ function _buildLibraryHTML(){
 }
 
 let _bdRating=0;
+// Картка книги — компактна (рішення Надії, 23.11.2026): шапка вбік (невелика
+// обкладинка ліворуч, праворуч назва, автор, зірки, сторінки й дата, місця
+// подій), жанр і мова поруч, «+ Мої думки» замість порожнього поля, «Зберегти»
+// й 🗑️ — липким низом. На телефоні 390×844 без думок уся картка видна без
+// прокрутки. Книга іншого гравця (не редагується) — той самий вигляд.
+const BD_COVER_K=0.6;   // обкладинка в шапці — 60% висоти книги на полиці
 function openBookDetail(i,playerId){
   const pid=playerId||cur;
   const pdata=state.players[pid];const book=(pdata&&pdata.books||[])[i];if(!book)return;
@@ -6125,74 +6189,94 @@ function openBookDetail(i,playerId){
   _bdRating=book.rating||0;
   _bdFormat=book.format||DEFAULT_FORMAT;
   const [top,bot]=_bookColor(book);
-  const cw=_coverW(book.pages||1),h=_bookH(book.pages||1);
-  const heroStyle=book.coverUrl?`background-image:url('${book.coverUrl}')`:`background:linear-gradient(150deg,${top} 0%,${bot} 100%)`;
+  const cw=Math.round(_coverW(book.pages||1)*BD_COVER_K),h=Math.round(_bookH(book.pages||1)*BD_COVER_K);
   // Обкладинка — у СВОЇХ пропорціях: висота як у книги, ширина — від картинки.
-  // Раніше картинку вписували в рамку з шириною від кількості сторінок і
-  // обрізали краї. Без обкладинки — кольорова заглушка тієї самої рамки.
-  const coverBoxHtml=`<div id="bd-cover-box" data-w="${cw}" data-h="${h}" style="${_bdBoxStyle(book.coverUrl,cw,h,top,bot)}">${_bdCoverImg(book.coverUrl)}</div>`;
-  const coverHtml=editable?`<div class="bd-cover-tap" onclick="toggleBdCoverEdit()">${coverBoxHtml}</div>`:coverBoxHtml;
-  const coverEditForm=editable?`<div id="bd-cover-editform" style="display:none;margin-bottom:12px" onclick="event.stopPropagation()">
-      <input type="url" id="bd-cover-input" class="finput" placeholder="https://…" style="font-size:11px;margin-bottom:6px" value="${book.coverUrl||''}" oninput="updBdCoverPreview()" onfocus="this.select()">
-      <button class="btn-ok" style="width:100%;padding:10px;font-size:13px" onclick="confirmBdCoverEdit()">Зберегти обкладинку</button>
+  // Без обкладинки — кольорова заглушка тієї самої рамки.
+  const coverBoxHtml=`<div id="bd-cover-box" data-w="${cw}" data-h="${h}" data-cap="${Math.round(h*0.9)}" style="${_bdBoxStyle(book.coverUrl,cw,h,top,bot)}">${_bdCoverImg(book.coverUrl)}</div>`;
+  // Тап на обкладинку: своя книга — посилання на обкладинку й вона ж великою;
+  // чужа — лише велика (якщо є).
+  const canBig=editable||!!book.coverUrl;
+  const coverHtml=canBig?`<div class="bd-cover-tap" role="button" aria-label="Обкладинка" onclick="toggleBdCoverEdit()">${coverBoxHtml}</div>`:coverBoxHtml;
+  const bigHtml=`<img id="bd-cover-big" class="bd-cover-big" alt="" src="${escUrl(book.coverUrl||'')||''}" style="${book.coverUrl?'':'display:none'}" onerror="this.style.display='none'">`;
+  const coverEditForm=canBig?`<div id="bd-cover-editform" style="display:none;margin-bottom:12px" onclick="event.stopPropagation()">
+      ${bigHtml}
+      ${editable?`<input type="url" id="bd-cover-input" class="finput" placeholder="https://…" style="margin-bottom:6px" value="${book.coverUrl||''}" oninput="updBdCoverPreview()" onfocus="this.select()">
+      <button class="btn-ok" style="width:100%;min-height:44px;font-size:13px" onclick="confirmBdCoverEdit()">Зберегти обкладинку</button>`:''}
     </div>`:'';
   const formatHtml=editable
-    ?`<div class="flbl" style="opacity:.6">Як прочитана</div>
+    ?`<div class="flbl">Як прочитана</div>
        <div id="bd-format">${formatTabsHTML(_bdFormat,'setBdFormat')}</div>`
-    :(formatLabel(book)?`<div style="text-align:center;font-size:12px;color:var(--txt-3);margin-bottom:12px">${formatLabel(book)}</div>`:'');
-  const genreHtml=editable?`<div class="flbl" style="opacity:.6">Жанр</div>
-    <select id="bd-genre" class="finput">
-      <option value="">Оберіть жанр</option>
-      ${GENRES.map(g=>`<option value="${g}" ${book.genre===g?'selected':''}>${g}${qGenreMark(g)}</option>`).join('')}
-    </select>`:(book.genre?`<div style="text-align:center;font-size:12px;color:var(--txt);margin-bottom:12px">${book.genre}</div>`:'');
+    :(formatLabel(book)?`<div class="bd-ro">${formatLabel(book)}</div>`:'');
   // Мову даємо виправити руками: детектор дивиться лише на грубі літери й на
-  // «Чайці» чи «Обломові» безсилий. Порожнє значення = «як визначила гра»,
-  // і тоді в дужках показуємо, що саме вона визначила.
+  // «Чайці» чи «Обломові» безсилий. Порожнє значення = «як визначила гра».
   const langAuto=detectBookLanguage(book.title);
-  const langHtml=editable?`<div class="flbl" style="opacity:.6">Мова</div>
-    <select id="bd-lang" class="finput">
-      <option value="">${esc(LANG_META[langAuto].label)} (визначено автоматично)</option>
-      ${LANG_IDS.map(id=>`<option value="${id}" ${book.lang===id?'selected':''}>${esc(LANG_META[id].label)}</option>`).join('')}
-    </select>`
-    :'';
-
+  const fieldsHtml=editable?`<div class="bd-2col">
+      <div><div class="flbl">Жанр</div>
+        <select id="bd-genre" class="finput">
+          <option value="">Оберіть жанр</option>
+          ${GENRES.map(g=>`<option value="${g}" ${book.genre===g?'selected':''}>${g}${qGenreMark(g)}</option>`).join('')}
+        </select></div>
+      <div><div class="flbl">Мова</div>
+        <select id="bd-lang" class="finput">
+          <option value="">${esc(LANG_META[langAuto].label)} (авто)</option>
+          ${LANG_IDS.map(id=>`<option value="${id}" ${book.lang===id?'selected':''}>${esc(LANG_META[id].label)}</option>`).join('')}
+        </select></div>
+    </div>`
+    :(book.genre?`<div class="bd-ro">${book.genre}</div>`:'');
   // Відгук приватний: друзям не віддається, у buildPublicSummary не входить.
-  // Текст НЕ йде в onclick і не підставляється в атрибут — лише в тіло поля,
-  // бо апостроф ми тут навмисно лишили (див. cleanReview).
+  // Текст НЕ йде в onclick і не підставляється в атрибут — лише в тіло поля.
   const revNow=bookRev(book);
   const revHtml=editable
-    ?`<div class="flbl" style="opacity:.6;display:flex;justify-content:space-between;align-items:baseline">
-        <span>Мої думки</span>
-        <span id="bd-rev-count" class="bd-rev-count">${revLen(revNow)}/${REV_MAX}</span>
+    ?(revNow?bdRevFieldHTML(revNow):`<div id="bd-rev-slot"><button class="bd-addrev" onclick="bdOpenRev()">+ Мої думки</button></div>`)
+    :(revNow?`<div class="flbl">Думки</div><div class="bd-rev-read"></div>`:'');
+  const footer=editable?`<div class="bd-foot">
+      <button class="btn-ok bd-save" onclick="saveBookDetail(${i})">Зберегти</button>
+      <button class="bd-delete-btn" onclick="confirmDeleteBook(${i})" title="Видалити книгу" aria-label="Видалити книгу">🗑️</button>
+    </div>`:'';
+  mHTML(`<button class="bd-x" onclick="closeModal()" aria-label="Закрити">✕</button>
+    <div class="bd-scroll">
+      <div class="bd-head">
+        <div class="bd-cov">${coverHtml}</div>
+        <div class="bd-meta">
+          <div class="bd-title">${esc(book.title)}</div>
+          ${lmBookAuthorHTML(book,editable)}
+          ${book.q?`<div class="bd-q">🤝 прочитано разом · ${esc(book.q.n)} · квест «${esc(book.q.g)}»</div>`:''}
+          <div id="bd-stars" class="bd-stars">${starRatingHTML(_bdRating,editable,'onBdStarClick')}</div>
+          <div class="bd-sub">${book.pages} стор. · ${esc(uaDate(book))}</div>
+          ${lmBookPlacesCard(book,editable)}
+        </div>
       </div>
-      <textarea id="bd-rev" class="finput bd-rev" rows="4" oninput="bdRevInput(this)"></textarea>`
-    :(revNow?`<div class="flbl" style="opacity:.6">Думки</div><div class="bd-rev-read"></div>`:'');
-  const footer=editable?`<button class="btn-ok" style="width:100%;margin-top:4px;padding:12px;font-size:13px" onclick="saveBookDetail(${i})">Зберегти</button>
-    <button class="bd-delete-btn" onclick="confirmDeleteBook(${i})" title="Видалити книгу">🗑️</button>`:'';
-  mHTML(`${M_CLOSE_BTN}
-    <div class="bd-hero">
-      <div class="bd-hero-bg" style="${heroStyle}"></div>
-      <div class="bd-hero-fade"></div>
-      ${coverHtml}
+      ${coverEditForm}
+      ${formatHtml}
+      ${fieldsHtml}
+      ${revHtml}
     </div>
-    ${coverEditForm}
-    <div class="m-title" style="font-size:15px">${book.title}</div>
-    ${lmBookAuthorHTML(book,editable)}
-    ${book.q?`<div style="text-align:center;font-size:11px;color:var(--ok);margin-bottom:8px">🤝 прочитано разом · ${esc(book.q.n)} · квест «${esc(book.q.g)}»</div>`:''}
-    <div id="bd-stars" style="display:flex;justify-content:center;margin-bottom:8px">${starRatingHTML(_bdRating,editable,'onBdStarClick')}</div>
-    <div style="text-align:center;font-size:11px;color:var(--txt-3);margin-bottom:12px">${book.pages} стор. · ${esc(uaDate(book))}</div>
-    ${lmBookPlacesCard(book,editable)}
-    ${formatHtml}
-    ${genreHtml}
-    ${langHtml}
-    ${revHtml}
-    ${footer}`);
+    ${footer}`,false,'bd-modal');
   // Текст кладемо ПІСЛЯ вставки розмітки і тільки як значення/текст, а не в
   // шаблон: так апостроф, лапки й переноси рядків не можуть нічого зламати.
   const rv=document.getElementById('bd-rev');
-  if(rv)rv.value=revNow;
+  if(rv){rv.value=revNow;bdRevSize(rv);}
   const rr=document.querySelector('.bd-rev-read');
   if(rr)rr.textContent=revNow;
+}
+// Поле «Мої думки»: 2 рядки, росте з текстом до межі, далі прокрутка в полі.
+function bdRevFieldHTML(revNow){
+  return`<div class="flbl" style="display:flex;justify-content:space-between;align-items:baseline">
+      <span>Мої думки</span>
+      <span id="bd-rev-count" class="bd-rev-count">${revLen(revNow)}/${REV_MAX}</span>
+    </div>
+    <textarea id="bd-rev" class="finput bd-rev" rows="2" oninput="bdRevInput(this)"></textarea>`;
+}
+const BD_REV_MAX_H=180;
+function bdRevSize(el){
+  el.style.height='auto';
+  el.style.height=Math.min(el.scrollHeight+2,BD_REV_MAX_H)+'px';
+}
+function bdOpenRev(){
+  const s=document.getElementById('bd-rev-slot');if(!s)return;
+  s.innerHTML=bdRevFieldHTML('');
+  const ta=document.getElementById('bd-rev');
+  bdRevSize(ta);ta.focus();
 }
 function onBdStarClick(event,i){
   _bdRating=i-(_starClickIsHalf(event)?0.5:0);
@@ -6202,7 +6286,8 @@ function toggleBdCoverEdit(){
   const form=document.getElementById('bd-cover-editform');if(!form)return;
   const open=form.style.display==='none'||!form.style.display;
   form.style.display=open?'':'none';
-  if(open)document.getElementById('bd-cover-input').focus();
+  const inp=document.getElementById('bd-cover-input');
+  if(open&&inp)inp.focus();
 }
 function updBdCoverPreview(){
   const url=(document.getElementById('bd-cover-input').value||'').trim();
@@ -6210,16 +6295,18 @@ function updBdCoverPreview(){
   box.innerHTML=_bdCoverImg(url);
   box.style.width=url?'fit-content':(box.dataset.w||60)+'px';
   box.style.height=url?'':(box.dataset.h||90)+'px';
+  const big=document.getElementById('bd-cover-big');
+  if(big){const u=escUrl(url)||'';big.style.display=u?'':'none';if(u)big.src=u;}
 }
 function _bdBoxStyle(url,cw,h,top,bot){
   return (url?'width:fit-content;line-height:0;':`width:${cw}px;height:${h}px;background:linear-gradient(150deg,${top} 0%,${bot} 100%);`)+
-    'border-radius:6px;overflow:hidden;margin:0 auto;box-shadow:0 10px 24px rgba(var(--shadow),.45);';
+    'border-radius:6px;overflow:hidden;box-shadow:0 6px 16px rgba(var(--shadow),.4);';
 }
 // Висота обкладинки — як у книги (`data-h` рамки), ширина — від картинки.
 // Задуже широку зменшуємо цілком, а не стискаємо вбік.
 function _bdFit(img){
   const box=img.parentNode;const h=+(box.dataset.h||220);
-  const cap=Math.min(260,window.innerWidth*0.72);
+  const cap=+box.dataset.cap||Math.min(260,window.innerWidth*0.72);
   const r=img.naturalWidth&&img.naturalHeight?img.naturalWidth/img.naturalHeight:0.66;
   img.style.height=(h*r>cap?cap/r:h)+'px';
 }
@@ -6251,6 +6338,7 @@ function bdRevInput(el){
     c.textContent=n+'/'+REV_MAX;
     c.classList.toggle('full',n>=REV_MAX);
   }
+  bdRevSize(el);
 }
 function saveBookDetail(i){
   const d=pd();const book=(d.books||[])[i];if(!book)return;
@@ -7799,12 +7887,14 @@ function lmPickDone(){
     return;
   }
   const b=(pd().books||[]).find(x=>x&&x.id===P.target);if(!b)return;
+  const beforeAch=achSnapshot(pd());
   const before=JSON.stringify([b.pl||[],!!b.fic]);
   if(P.fic){b.fic=1;delete b.pl;}else{delete b.fic;if(pl.length)b.pl=pl;else delete b.pl;}
   if(JSON.stringify([b.pl||[],!!b.fic])===before)return;
   b.plu=lmTs(b.plu);
   saveToCloud(cur);
   lmRefreshViews();
+  celebrateNewAchievements(pd(),beforeAch);   // «Навколо світу», «Світобудівник»
 }
 // Після будь-якої зміни: картка книги, форма, статистика.
 function lmRefreshViews(){
@@ -7825,18 +7915,27 @@ function lmAuthorBtnInner(name){
 }
 function lmBookAuthorHTML(book,editable){
   if(!book.author)return'';
-  if(!editable)return`<div style="text-align:center;font-size:12px;color:var(--txt-2);margin-bottom:8px">${esc(book.author)}</div>`;
+  if(!editable)return`<div class="bd-author-ro">${esc(book.author)}</div>`;
   return`<button class="bd-author" id="bd-author" data-id="${esc(book.id)}" onclick="openAuthorSheetFor(this.dataset.id)">${lmAuthorBtnInner(book.author)}</button>`;
 }
+// Місця подій у картці книги — одним рядком під датою, як рядок автора:
+// «🌍 🇺🇸 США, Сан-Франциско ›» (країна й її міста; кілька країн — через «·»).
 function lmBookPlacesHTML(book,editable){
-  const chips=lmPlacesChips(book);
-  return`<div class="lm-card-h" style="margin-bottom:${chips?'8px':'0'}"><span class="lm-card-t">🌍 Місця подій</span>
-      ${editable?`<button class="lm-link" onclick="openPlacePicker(this.closest('#bd-places').dataset.id)">${chips?'Змінити':'+ Додати місце'}</button>`:''}</div>
-    ${chips?`<div class="lm-chips">${chips}</div>`:''}`;
+  let t;
+  if(book.fic)t='🪐 Вигаданий світ';
+  else{
+    const g=new Map();
+    lmPlaces(book).forEach(p=>{if(!g.has(p.c))g.set(p.c,[]);if(p.g)g.get(p.c).push(p.n);});
+    t=g.size?[...g].map(([c,cs])=>`${lmFl(c)} ${esc([lmCName(c)].concat(cs).join(', '))}`).join(' · '):'+ Місця подій';
+  }
+  return`<span class="bd-pl-ico">🌍</span><span class="bd-pl-t">${t}</span>${editable?'<span class="bd-pl-go" aria-hidden="true">›</span>':''}`;
 }
 function lmBookPlacesCard(book,editable){
   if(!editable&&!book.fic&&!lmPlaces(book).length)return'';
-  return`<div class="lm-card bd-places" id="bd-places" data-id="${esc(book.id)}">${lmBookPlacesHTML(book,editable)}</div>`;
+  const inner=lmBookPlacesHTML(book,editable);
+  return editable
+    ?`<button class="bd-row bd-places" id="bd-places" data-id="${esc(book.id)}" onclick="openPlacePicker(this.dataset.id)">${inner}</button>`
+    :`<div class="bd-row bd-places" id="bd-places" data-id="${esc(book.id)}">${inner}</div>`;
 }
 function openAuthorSheetFor(bookId){
   const b=(pd().books||[]).find(x=>x&&x.id===bookId);if(!b)return;
@@ -7916,9 +8015,11 @@ function lmSheetSet(c){
   if(c&&!lmIsC(c))return;
   closeAuthorSheet();
   if(S.form){_addLm.ac[S.own]=c||'';renderSpPlaces();return;}
-  lmSetAuthorCountry(pd(),S.k,c,S.name);
+  const d=pd(),before=achSnapshot(d);
+  lmSetAuthorCountry(d,S.k,c,S.name);
   saveToCloud(cur);
   lmRefreshViews();
+  celebrateNewAchievements(d,before);   // «Мандрівник»: країна автора могла дати сходинку
 }
 
 // ═══ «Яку країну лишити?» — об'єднання авторів з різними країнами ═══
@@ -7998,12 +8099,14 @@ function lmDoMerge(keep,drop,c){
     lmAskCountry([{c:ke.c,name:ke.name},{c:de.c,name:de.name}],x=>lmDoMerge(keep,drop,x));
     return;
   }
+  const beforeAch=achSnapshot(d);
   lmMerge(d,keep,drop,ke.name,de.name,c);
   if(_lmSheet&&_lmSheet.k===drop)_lmSheet.k=keep;
   _lmAu.sel=[];_lmAu.sugKeep={};
   saveToCloud(cur);
   lmRefreshViews();
   if(_lmSheet)lmRenderSheet();
+  celebrateNewAchievements(d,beforeAch);   // «Фанат автора»: об'єднання додає книги одному автору
 }
 function lmSugKeep(i,j){const p=_lmAuSug[i];if(p&&p[j])_lmAu.sugKeep[lmPairKey(p)]=p[j].k;}
 function lmMergeSug(i){
@@ -8090,7 +8193,7 @@ function renderSpPlaces(){
   el.innerHTML=`<div class="flbl">Країна автора</div><div style="margin-bottom:12px">${country}</div>
     ${hint?`<div style="margin-bottom:12px">${hint}</div>`:''}
     <div class="flbl">Місця подій</div>
-    <div class="lm-chips">${places}<button class="lm-chip add" onclick="openPlacePicker('add')">${_addLm.pl.length||_addLm.fic?'Змінити':'+ Додати місце'}</button></div>`;
+    <div class="lm-chips">${places}<button class="lm-chip add" onclick="openPlacePicker('add')">${_addLm.pl.length||_addLm.fic?'Змінити':'+ Місця подій'}</button></div>`;
 }
 function lmSpOpenSheet(){const n=lmSpName();if(n)openAuthorSheet(n,true);}
 // «Так, той самий» — лише для того імені, про яке питали (ім'я могли змінити
